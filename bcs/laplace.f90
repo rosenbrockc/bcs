@@ -3,6 +3,7 @@ module laplace
 use matrix_sets
   implicit none
   private
+  public norm
   
   !!<usage>Create a laplace iterator object using public type laplace_iterator
   !! - Call iterator.initialize(Phi, y, sigma2, eta)
@@ -120,8 +121,6 @@ contains
   !!<parameter name="Js_indices">The basis function indices that the @CREF[param.Js] solution
   !!values correspond to.</parameter>
   !!<parameter name="error_bars">Diagonal terms in the covariance matrix Sigma.</parameter>
-  !!<parameter name="next_PIs">Next bases to include could be estimated from the eigenvalues of Sigma
-  !!but it isn't necessary to get bcs to work.</parameter>
   !!<parameter name="returnsigma2">If sigma2 was not specified, this is the value that was
   !!calculated from the data.</parameter>
   subroutine iterate(this, Js, error_bars, returnsigma2, Js_indices) 

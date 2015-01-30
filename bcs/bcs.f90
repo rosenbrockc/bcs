@@ -1,14 +1,16 @@
-  !!<summary>Wrapper module for calculating finding a solution vector to an
-  !!underdetermined linear system by minimizing the ell_1 norm with Bayesian
-  !!constraints. It is assumed that a collection of 'data sets' are available
-  !!with each one having an 1) experimental measurement and 2) a vector of
-  !!coefficients from evaluating the set within some basis that matches the
-  !!constraints of compressive sensing. The collection of data sets' function
-  !!evaluation vectors is called 'full_pi' and the measurements vector is called
-  !!'y'.</summary>
+!!<summary>Wrapper module for calculating finding a solution vector to an
+!!underdetermined linear system by minimizing the ell_1 norm with Bayesian
+!!constraints. It is assumed that a collection of 'data sets' are available
+!!with each one having an 1) experimental measurement and 2) a vector of
+!!coefficients from evaluating the set within some basis that matches the
+!!constraints of compressive sensing. The collection of data sets' function
+!!evaluation vectors is called 'full_pi' and the measurements vector is called
+!!'y'.</summary>
 module bcs
+  use num_types
   use laplace
-
+  public choose_n_random_sets, do_bcs, do_reweighted, do_normal, write_results
+  public predict, validate
 contains
   !!<summary>The purpose of this routine is to find a set of structures that are
   !!uncorrelated (in the sense discussed by Candes in his Compressive
@@ -26,17 +28,17 @@ contains
   !! 7. Construct an orthonormal basis in the space of selected data sets.
   !! 8. Go back to 2 until the desired size of selected set is reached.
   !!</comments>
-  !!<parameter name="full_pi">The entire matrix of data sets (as defined above).</parameter>
-  !!<parameter name="nrandsets">The number of random sets to select.</parameter>
-  !!<parameter name="selected">The indices of the randomly selected data sets (rows in the
+  !!<parameter name="full_pi" regular="true">The entire matrix of data sets (as defined above).</parameter>
+  !!<parameter name="nrandsets" regular="true">The number of random sets to select.</parameter>
+  !!<parameter name="selected" regular="true">The indices of the randomly selected data sets (rows in the
   !!@CREF[param.full_pi] matrix.</parameter>
-  !!<parameter name="seed">The seed for the random number generator; set using the
+  !!<parameter name="seed" regular="true">The seed for the random number generator; set using the
   !!system clock if unspecified.</parameter>
   SUBROUTINE choose_n_random_sets(full_pi, nrandsets, selected, seed)
     real(dp), allocatable :: full_pi(:,:)
     integer, intent(in) :: nrandsets
-    integer, pointer :: selected(:)
-    integer, optional, allocatable :: seed(:)
+    integer, intent(inout), pointer :: selected(:)
+    integer, intent(inout), optional, allocatable :: seed(:)
 
     !!<local name="n, clock">The length of the random seed and system clock time.</local>
     !!<local name="nsets, nbasis">The number of data sets and basis function evaluations
@@ -52,14 +54,14 @@ contains
     !!that is closest.</local>
     !!<local name="inList">Used to hold the result from checking whether a data set is
     !!already in the solution vector of indices @CREF[param.selected].</local>
-    integer n, clock
-    integer nsets, nbasis
+    integer :: n, clock
+    integer :: nsets, nbasis
     real(dp), allocatable :: randset(:), tempset(:)
-    real(dp) closest, distance ! For sorting the candidate structures
-    integer i, j, keepIdx
-    integer inList(1)
+    real(dp) :: closest, distance ! For sorting the candidate structures
+    integer :: i, j, keepIdx
+    integer :: inList(1)
 
-    if (.not. present(seed)) then
+    if (.not. present(seed) .or. (.not. allocated(seed))) then
        call random_seed(size = n)
        allocate(seed(n))
        call system_clock(count = clock)
@@ -68,14 +70,13 @@ contains
     
     ! Seed the random number generator using the provided or calculated seed.
     call random_seed(put = seed)
-    deallocate(seed)
 
     nsets = size(full_pi, 1)
     nbasis = size(full_pi, 2)
 
     allocate(randset(nbasis), tempset(nbasis))
     allocate(selected(nrandsets))
-    nrandsets = 0
+    selected = 0
 
     ! Loop until the desired number of uncorrelated data sets are found.
     do i = 1, nrandsets
@@ -119,14 +120,15 @@ contains
   !!<comments>Modified Gram-Schmidt routine retrieved January 2015 from
   !!http://terminus.sdsu.edu/SDSU/Math543_s2008/Lectures/07/lecture.pdf; while it
   !!isn't as good as householder, it is really simple.</comments>
-  !!<parameter name="A">The matrix whose columns represent the vectors to orthogonalize.</parameter>
+  !!<parameter name="A" regular="true">The matrix whose columns represent the vectors
+  !!to orthogonalize.</parameter>
   !!<parameter name="Q">The orthogonal matrix from the QR decomposition by
   !!classic Gram-Schmidt.</parameter>
   subroutine gram_schmidt(A, Q)
     real(dp), intent(in) :: A(:,:)
     real(dp), intent(out) :: Q(size(A, 1), size(A, 2))
 
-    !!<local name="qii">The ith unit vector for Q.</local>
+    !!<local name="qi">The ith unit vector for Q.</local>
     !!<local name="ncol, nrow">The number of columns and rows in A.</local>
     real(dp) :: qi(size(A, 1))
     integer ncol
@@ -146,8 +148,9 @@ contains
   !!<summary>This routine takes a random vector on a unit hypersphere and
   !!orthogonalizes it with respect to an existing list of vectors
   !!(themselves not necessarily orthogonal). The output vector is normalized.</summary>
-  !!<parameter name="randvec">The random vector to orthogonalize.</parameter>
-  !!<parameter name="veclist">The list of existing vectors to orthogonalize against.</parameter>
+  !!<parameter name="randvec" regular="true">The random vector to orthogonalize.</parameter>
+  !!<parameter name="veclist" regular="true">The list of existing vectors to
+  !!orthogonalize against.</parameter>
   subroutine orthogonalize_to_set_list(randvec, veclist)
     real(dp), intent(inout) :: randvec(:)
     real(dp), intent(in)    :: veclist(:,:)
@@ -165,7 +168,7 @@ contains
     ! You want to do this projection in a loop (rather than "vectorized"),
     ! updating the vector as you go because it is numerically stable that
     ! way. (See discussions about stability of Gram-Schmidt...same issues
-    ! here are important here.)
+    ! are important here.)
     do i = 1, size(veclist, 1)
        randvec = randvec - dot_product(randvec, ortholist(i,:))*ortholist(i,:)
     enddo
@@ -185,6 +188,8 @@ contains
   !!<parameter name="epsilon">!A fudge factor for numerical stability.</parameter>
   !!<parameter name="fxn">The name of the penalty function to use. Possible values:
   !!logsum, logsig, arctan, quarti, hexics, octics.</parameter>
+  !!<skip enabled="true">This function just has hard-coded analytic functions; there
+  !!is nothing tricky since only scalars are involved.</skip>
   real(dp) function reweight_penalty(j0, epsilon, fxn)
     real(dp), intent(in) :: j0 
     real(dp), intent(in) :: epsilon 
@@ -210,12 +215,11 @@ contains
   
   !!<summary>Finds the optimal value for sigma^2 and checks its validity to detect
   !!data that isn't well suited to the BCS routine.</summary>
-  !!<parameter name="y">The experimental measurements for each data set.</parameter>
-  !!<parameter name="full_pi">The full matrix of basis function evaluations for
-  !!each data set for which we have measurements.</parameter>
-  !!<parameter name="nfit">The number of data sets allowed to be used in the fit.</parameter>
-  real(dp) function get_sigma2(full_pi, y, nfit)
-    real(dp), pointer, intent(in) :: full_pi(:,:), y(:)
+  !!<parameter name="y" regular="true">The experimental measurements for each data set.</parameter>
+  !!<parameter name="nfit" regular="true">The number of data sets allowed to be
+  !!used in the fit.</parameter>
+  real(dp) function get_sigma2(y, nfit)
+    real(dp), allocatable, intent(in) :: y(:)
     integer, intent(in) :: nfit
 
     !This estimate for sigma^2 is just (<y_ii^2> - <y_ii>^2)/100.
@@ -229,19 +233,18 @@ contains
   end function get_sigma2
   
   !!<summary>This routine wraps the Bayesian CS routine with an outside loop. Only
-  !!regular ell_1 minimization is done (as opposed to p<1 reweighted minimization).</summary>
-  !!<parameter name="y">The experimental measurements for each data set.</parameter>
-  !!<parameter name="full_pi">The full matrix of basis function evaluations for
+  !!regular ell_1 minimization is done (as opposed to p &lt; 1 reweighted minimization).</summary>
+  !!<parameter name="y" regular="true">The experimental measurements for each data set.</parameter>
+  !!<parameter name="full_pi" regular="true">The full matrix of basis function evaluations for
   !!each data set for which we have measurements.</parameter>
-  !!<parameter name="sigma2">Initial noise variance (default : std(t)^2/1e2).</parameter>
-  !!<parameter name="eta">Threshold for stopping the iteration algorithm.</parameter>
+  !!<parameter name="sigma2" regular="true">Initial noise variance (default : std(t)^2/1e2).</parameter>
+  !!<parameter name="eta" regular="true">Threshold for stopping the iteration algorithm.</parameter>
   !!<parameter name="js">The solution vector for the reweighted BCS.</parameter>
   !!<parameter name="error_bars">Error bars for the solution vector @CREF[param.js]; taking
   !!from the diagonal entries of the covariance matrix.</parameter>
   subroutine do_normal(full_pi, y, sigma2, eta, js, error_bars)
-    real(dp), pointer, intent(in) :: full_pi(:,:), y(:)
-    real(dp), intent(in) :: sigma2, eta, jcutoff
-    character(len=6), intent(in) :: penaltyfxn
+    real(dp), allocatable, intent(in) :: full_pi(:,:), y(:)
+    real(dp), intent(in) :: sigma2, eta
     real(dp), intent(out) :: js(size(full_pi, 2)), error_bars(size(full_pi, 2))
 
     !!<local name="iterator">The laplace iterator to find the solution vector.</local>
@@ -253,27 +256,27 @@ contains
     allocate(iterator)
     call iterator%initialize(full_pi, y, sigma2, eta)
     call iterator%iterate(js, error_bars, returnsigma2)
-    deallocate(this%iterator)
+    deallocate(iterator)
   end subroutine do_normal
   
   !!<summary>This routine wraps the Bayesian CS routine with an outside loop that
-  ! applies the p<1 norm reweighting scheme.</summary>
+  !! applies the p &lt; 1 norm reweighting scheme.</summary>
   !!<comments>See: E. J. Candès, M. Wakin and S. Boyd. Enhancing sparsity by
   !! reweighted \ell_1 minimization. J. Fourier Anal. Appl., 14 877-905.</comments>
-  !!<parameter name="y">The experimental measurements for each data set.</parameter>
-  !!<parameter name="full_pi">The full matrix of basis function evaluations for
+  !!<parameter name="y" regular="true">The experimental measurements for each data set.</parameter>
+  !!<parameter name="full_pi" regular="true">The full matrix of basis function evaluations for
   !!each data set for which we have measurements.</parameter>
-  !!<parameter name="sigma2">Initial noise variance (default : std(t)^2/1e2).</parameter>
-  !!<parameter name="eta">Threshold for stopping the iteration algorithm.</parameter>
-  !!<parameter name="jcutoff">The minimum value a J coefficient has to have
+  !!<parameter name="sigma2" regular="true">Initial noise variance (default : std(t)^2/1e2).</parameter>
+  !!<parameter name="eta" regular="true">Threshold for stopping the iteration algorithm.</parameter>
+  !!<parameter name="jcutoff" regular="true">The minimum value a J coefficient has to have
   !!in order to be kept between reweighting iterations.</parameter>
-  !!<parameter name="penaltyfxn">The name of the penalty function to use. Possible values:
+  !!<parameter name="penaltyfxn" regular="true">The name of the penalty function to use. Possible values:
   !!logsum, logsig, arctan, quarti, hexics, octics.</parameter>
   !!<parameter name="js">The solution vector for the reweighted BCS.</parameter>
   !!<parameter name="error_bars">Error bars for the solution vector @CREF[param.js]; taking
   !!from the diagonal entries of the covariance matrix.</parameter>
   subroutine do_reweighted(full_pi, y, sigma2, eta, jcutoff, penaltyfxn, js, error_bars)
-    real(dp), pointer, intent(in) :: full_pi(:,:), y(:)
+    real(dp), allocatable, intent(in) :: full_pi(:,:), y(:)
     real(dp), intent(in) :: sigma2, eta, jcutoff
     character(len=6), intent(in) :: penaltyfxn
     real(dp), intent(out) :: js(size(full_pi, 2)), error_bars(size(full_pi, 2))
@@ -297,11 +300,11 @@ contains
     !!specifed by 'i_0'.</local>
     !!<local name="epsilon">The reweighting parameter that controls how aggresively the
     !!weight matrix is altered.</local>
-    real(dp) returnsigma2
+    real(dp) :: returnsigma2
     real(dp), allocatable :: w_pi(:,:)
     real(dp), allocatable :: weight_matrix(:,:)
     integer :: nsets, nbasis
-    real(dp), allocatable :: copyJs(size(full_pi,2))
+    real(dp) :: copyJs(size(full_pi,2))
     integer :: ell0, prevell0
     type(laplace_iterator), pointer :: iterator
     integer  :: i_0, maxidx(1)
@@ -310,10 +313,13 @@ contains
 
     !We start off with the identity matrix for the weight matrix and then
     !update it after each iteration.
+    nbasis = size(full_pi, 2)
+    nsets = size(full_pi, 1)
+    
     allocate(weight_matrix(nbasis,nbasis), w_pi(nsets,nbasis))
     allocate(iterator)
     weight_matrix = 0
-    do i = 1, this%nCorrs
+    do i = 1, nbasis
        weight_matrix(i,i) = 1
     end do
 
@@ -366,28 +372,505 @@ contains
     deallocate(iterator)    
   end subroutine do_reweighted
 
+  !!<summary>Partitions the collection of data sets into a set for fitting and a set
+  !!for validating the fit.</summary>
+  !!<parameter name="nfits" regular="true">The number of data sets to use in the fit.</parameter>
+  !!<parameter name="nsets" regular="true">The total number of sets available to select from.</parameter>
+  !!<parameter name="nholdout" regular="true">The number of data sets to
+  !!retain for validation.</parameter>
+  !!<parameter name="fitlist">A list of the row indices in 'full_pi' that should be used
+  !!for fitting.</parameter>
+  !!<parameter name="holdlist">A list of the row indices in 'full_pi' that should be held
+  !!out for validation after the fitting.</parameter>
+  !!<parameter name="seed" regular="true">The seed for the random number generator; set using the
+  !!system clock if unspecified.</parameter>
+  subroutine partition_holdout_set(nfits, nsets, nholdout, fitlist, holdlist, seed)
+    integer, intent(in) :: nfits, nsets, nholdout
+    integer, intent(inout) :: fitlist(nfits, nsets-nholdout), holdlist(nfits, nholdout)
+    integer, optional, allocatable :: seed(:)
+
+    !!<local name="n, clock">The length of the random seed and system clock time.</local>
+    !!<local name="list">Holds a temporory list of the remaining items once one has
+    !!been randomly selected for inclusion in the fit list.</local>
+    !!<local name="indx">The index of the randomly selected set.</local>
+    !!<local name="item">Temporary for holding the value of the randomly selected index.</local>
+    !!<local name="ifit, iset, i">Iterators over the fits, sets and loop constructs.</local>
+    !!<local name="r">Holds the randomly selected value for choosing random fit sets.</local>
+    integer :: n, clock
+    integer :: ifit, i, list(nsets)
+    real(dp) :: r
+    integer :: indx, iset, item
+
+    if (.not. present(seed) .or. (.not. allocated(seed))) then
+       call random_seed(size = n)
+       allocate(seed(n))
+       call system_clock(count = clock)
+       seed = clock + 37 * (/ (i -1, i = 1, n)/)
+    end if
+    
+    ! Seed the random number generator using the provided or calculated seed.
+    call random_seed(put = seed)
+
+    do ifit = 1, nfits
+       list = (/(i, i=1, nsets)/)
+       do iset = 1, nsets
+          call random_number(r)
+          ! Pick the index of item at random from the remaining list
+          indx = ceiling(r*(nsets - iset + 1))
+          item = list(indx) ! Get the value of the list at the selected index
+          list = (/list(1:indx-1), list(indx+1:size(list)), item/) ! Update the list of items
+       enddo
+
+       fitlist(ifit,:) = list(1:nsets-nholdout)
+       holdlist(ifit,:) = list(nsets-nholdout+1:)
+    end do
+  end subroutine partition_holdout_set
+
+  !!<summary>Returns lowest i/o unit number not in use.</summary>
+  !!<parameter name="unit">Out parameter that will contain the lowest i/o number.</parameter>
+  !!<skip enabled="true">Only involves scalars and system functions/procedures.</skip>
+  integer function newunit(unit) result(n)
+    integer, intent(out), optional :: unit
+    logical inuse
+    integer, parameter :: nmin=10   ! avoid lower numbers which are sometimes reserved
+    integer, parameter :: nmax=999  ! may be system-dependent
+    do n = nmin, nmax
+       inquire(unit=n, opened=inuse)
+       if (.not. inuse) then
+          if (present(unit)) unit=n
+          return
+       end if
+    end do
+    stop "newunit ERROR: available unit not found."
+  end function newunit
+
+  !!<summary>Returns a value indicating whether the specified file exists.</summary>
+  !!<parameter name="filename">The name of the file to check for (in the current directory).</parameter>
+  !!<skip enabled="true">Only involves scalars and system functions/procedures.</skip>
+  logical function file_exists(filename)
+    character(len=*), intent(in) :: filename
+    integer :: fileio, ioerr
+    
+    open(newunit(fileio), file=filename, status='old', iostat=ioerr)
+    !If there wasn't an error, the file must exist, so the tracker has been enabled
+    if (ioerr .eq. 0) then
+       close(fileio)
+       file_exists = .TRUE.
+    end if
+    !else, the default value is already false.
+  end function file_exists
+
+  !!<summary>Returns the number of values in the specified line assuming
+  !!that they are separated by spaces or tabs.</summary>
+  !!<parameter name="length">The number of characters in line.</parameter>
+  !!<parameter name="line">The string for the line to count values in.</parameter>
+  !!<skip enabled="true">Disabled because it is a copy of the fortpy routine called
+  !!'fpy_value_count' that has been tested as part of fortpy.</skip>
+  integer function value_count(line, length)
+    integer, intent(in) :: length
+    character(length), intent(in) :: line
+    character(2) :: whitespace
+    integer           :: success, i, indx, prev = 1, beginning = 1
+    real              :: value
+
+    !Initialize the whitespace array. We will cycle through all the characters
+    !in the specified line looking for whitespace. Each time we find it, if the
+    !character immediately preceding it was not whitespace, we have a value.
+    whitespace = '  '
+    value_count = 0
+
+    do i = 1, length
+       !indx will be zero if the current character is not a whitespace character.
+       indx = index(whitespace, line(i:i))
+       !The ichar == 9 statement checks for tabs; we used to have it concatenated onto the
+       !whitespace array, but there was a bug, so we switched to explicit behavior.
+       if ((indx > 0 .or. ichar(line(i:i)) .eq. 9) .and. prev == 0) then
+          !We found the first whitespace after the end of a value we want.
+          value_count = value_count + 1
+       end if
+
+       prev = indx
+    end do
+
+    !If the last value on the line ends right before \n, then we wouldn't have
+    !picked it up; add an extra one.
+    if (indx == 0) value_count = value_count + 1
+  end function value_count
+  
+  !!<summary>Returns the number of lines in the file that aren't comments and
+  !!the number of whitespace-separated values on the first non-comment line.</summary>
+  !!<parameter name="filename">The name of the file to pass to open.</parameter>
+  !!<parameter name="n">The number of characters in 'filename'.</parameter>
+  !!<parameter name="commentchar">A single character which, when present at the start
+  !!of a line designates it as a comment.</parameter>
+  !!<skip enabled="true">Disabled because it is a copy of the fortpy routine called
+  !!'fpy_linevalue_count' that has been tested as part of fortpy.</skip>
+  subroutine linevalue_count(filename, n, commentchar, nlines, nvalues)
+    integer, intent(in) :: n
+    character(n), intent(in) :: filename
+    character(1), intent(in) :: commentchar
+    integer, intent(out) :: nlines, nvalues
+    character(len=:), allocatable :: cleaned
+    integer :: ioerr, funit
+    character(150000) :: line
+
+    !Initialize the value for the result; if we get an error during the read, we
+    !end the loop. It can be caused by badly formatted data or the EOF marker.
+    nlines = 0
+    nvalues = 0
+
+    open(newunit(funit), file=filename, iostat=ioerr)
+    if (ioerr == 0) then
+       do
+          read(funit, "(A)", iostat=ioerr) line
+          if (ioerr == 0) then
+             cleaned = trim(adjustl(line))
+             if (len(cleaned) .gt. 0) then
+                if (cleaned(1:1) /= commentchar) then
+                   nlines = nlines + 1
+                   !We only need to get the number of values present in a line once.
+                   !We restrict the file structure to have rectangular arrays.
+                   if (nvalues == 0) then
+                      nvalues = value_count(cleaned, len(cleaned))
+                   end if
+                end if
+             end if
+          else
+             exit
+          end if
+       end do
+    end if
+    close(funit)
+  end subroutine linevalue_count
+
+  !!<summary>Writes the resulting solution vector, error bars and error prediction
+  !!to the specified file unit.</summary>
+  !!<parameter name="js">The solution vector for the reweighted BCS. There is one row
+  !!in this matrix for each fit performed. The values below the cutoff should already
+  !!be set to zero.</parameter>
+  !!<parameter name="hold_rms_, fit_rms">The RMS error for the holdout set and fitting
+  !!set respectively using the coefficients from the BCS ell_1 minimization.</parameter>
+  !!<parameter name="hold_err_, fit_err">The absolute error for the holdout set and fitting
+  !!set respectively using the coefficients from the BCS ell_1 minimization.</parameter>
+  subroutine write_results(js, fit_rms, fit_err, hold_rms_, hold_err_, sigma2_)
+    real(dp), intent(in) :: js(:,:), fit_rms(:), fit_err(:)
+    real(dp), intent(in), optional :: hold_rms_(:), hold_err_(:), sigma2_(:)
+
+    !!<local name="l0, l1">The ell_0 and ell_1 norms of the solution vectors.</local>
+    !!<local name="funit">File unit for writing the results.</local>
+    integer :: l0, funit, i
+    real(dp) :: l1
+    !The s_* character arrays are for formatting the values of the optional parameters
+    !so that we can insert blanks if they were not specified.
+    character(22) :: s_sigma2, s_fmt
+    character(20) :: s_fitrms, s_fiterr, s_holdrms, s_holderr
+
+    open(unit=newunit(funit), file='summary.out', status="replace")
+    s_fmt = '(A5, A20, A5, 4A20, A22)'
+    write(funit, s_fmt) 'Fit #','|J|_1','|J|_0','RMS(fit)','ERR(fit)','RMS(hold)','ERR(hold)','sigma^2'
+    !Overwrite the string format specified for the header with the data item format.
+    s_fmt = '(I5, F20.5, I5, 2F20.5, 2A20, A22)'
+    
+    do i=1, size(js, 1)
+       !Handle the writing of the optional arguments; if they weren't specified, they shouldn't show up.
+       if (present(hold_err_)) then
+          write(s_holderr, '(F20.5)') hold_err_(i)
+       else
+          s_holderr = ''
+       end if
+       if (present(hold_rms_)) then
+          write(s_holdrms, '(F20.5)') hold_rms_(i)
+       else
+          s_holdrms = ''
+       end if
+       if (present(sigma2_)) then
+          write(s_sigma2, '(F22.10)') sigma2_(i)
+       else
+          s_sigma2 = ''
+       end if   
+       
+       l1 = sum(abs(js(i, :)))
+       l0 = count(abs(js(i, :)) > 0.0)
+       write(funit, s_fmt) i, l1, l0, fit_rms(i), fit_err(i), s_holdrms, s_holderr, s_sigma2
+    end do
+    close(funit)
+  end subroutine write_results
+
+  !!<summary>Predicts measurement values for the specified matrix of function evalutions
+  !!and a BCS solution vector.</summary>
+  !!<parameter name="pi" regular="true">A matrix of data sets (rows) with each set evaluated at the basis
+  !!functions in @CREF[param.js].</parameter>
+  !!<parameter name="js">The BCS solution vector with coefficients for each basis function
+  !!forming the model.</parameter>
+  !!<parameter name="prediction" regular="true">The resulting vector of the model's
+  !!measurement predictions.</parameter>
+  subroutine predict(pi, js, prediction)
+    real(dp), allocatable, intent(in) :: pi(:,:)
+    real(dp), intent(in) :: js(size(pi, 2))
+    real(dp), allocatable, intent(inout) :: prediction(:)
+
+    integer :: k
+    if (allocated(prediction)) deallocate(prediction)
+    allocate(prediction(size(pi, 1)))
+    prediction(:) = (/ (dot_product(pi(k,:), js(:)), k=1, size(pi, 1)) /)
+  end subroutine predict
+
+  !!<summary>Predicts measurement values for the specified matrix of function evalutions
+  !!and a BCS solution vector, and validates the prediction against a known solution.</summary>
+  !!<parameter name="pi" regular="true">A matrix of data sets (rows) with each set evaluated at the basis
+  !!functions in @CREF[param.js].</parameter>
+  !!<parameter name="y" regular="true">The experimental measurements for each data set.</parameter>
+  !!<parameter name="js">The BCS solution vector with coefficients for each basis function
+  !!forming the model.</parameter>
+  !!<parameter name="prediction" regular="true">The resulting vector of the model's
+  !!measurement predictions.</parameter>
+  !!<parameter name="pred_err" regular="true">The absolute error over the entire
+  !!prediction vector.</parameter>
+  !!<parameter name="pred_rms" regular="true">The RMS error for the entire prediction vector.</parameter>
+  subroutine validate(pi, y, js, prediction, pred_err, pred_rms)
+    real(dp), allocatable, intent(in) :: pi(:,:)
+    real(dp), allocatable, intent(in) :: y(:)
+    real(dp), intent(in) :: js(size(pi, 2))
+    real(dp), allocatable, intent(inout) :: prediction(:)
+    real(dp), intent(out) :: pred_err, pred_rms
+
+    call predict(pi, js, prediction)
+    pred_err = sum(abs(prediction - y))
+    pred_rms = sqrt(sum((prediction - y)**2)/size(pi, 1))
+  end subroutine validate
+  
   !!<summary>Performs BCS for the given sensing matrix and measurement vector.</summary>
-  !!<parameter name="y">The experimental measurements for each data set.</parameter>
-  !!<parameter name="full_pi">The full matrix of basis function evaluations for
+  !!<parameter name="y" regular="true">The experimental measurements for each data set.</parameter>
+  !!<parameter name="full_pi" regular="true">The full matrix of basis function evaluations for
   !!each data set for which we have measurements.</parameter>
-  !!<parameter name="nfits">The number of random fits to perform with these args.</parameter>
+  !!<parameter name="nfits" regular="true">The number of random fits to perform with these args.
+  !!Specify a value of 1, for minimal requirements to run.</parameter>
   !!<parameter name="js">The solution vector for the reweighted BCS. There is one row
   !!in this matrix for each fit performed.</parameter>
   !!<parameter name="error_bars">Error bars for the solution vector @CREF[param.js]; taking
   !!from the diagonal entries of the covariance matrix. There is one row in this matrix
   !!for each fit performed.</parameter>
-  !!<parameter name="sigma2">Initial noise variance (default : std(t)^2/1e2).</parameter>
-  !!<parameter name="eta">Threshold for stopping the iteration algorithm.</parameter>
-  !!<parameter name="jcutoff">The minimum value a J coefficient has to have
+  !!<parameter name="hold_rms_, fit_rms">The RMS error for the holdout set and fitting
+  !!set respectively using the coefficients from the BCS ell_1 minimization.</parameter>
+  !!<parameter name="hold_err_, fit_err">The absolute error for the holdout set and fitting
+  !!set respectively using the coefficients from the BCS ell_1 minimization.</parameter>
+  !!<parameter name="nholdout_" regular="true">If validation is desired, how many of the data sets in
+  !!@CREF[param.full_pi] should be used for validation. If unspecified, then no validation
+  !!is performed unless the file 'holdout' is present in the current directory, in which
+  !!case the values in that file are used instead.</parameter>
+  !!<parameter name="sigma2_">Initial noise variance (default : std(t)^2/1e2).</parameter>
+  !!<parameter name="eta_" regular="true">Threshold for stopping the iteration algorithm.</parameter>
+  !!<parameter name="jcutoff_" regular="true">The minimum value a J coefficient has to have
   !!in order to be kept between reweighting iterations.</parameter>
-  !!<parameter name="penaltyfxn">The name of the penalty function to use. Possible values:
+  !!<parameter name="penaltyfxn_" regular="true">The name of the penalty function to use. Possible values:
   !!logsum, logsig, arctan, quarti, hexics, octics.</parameter>
-  subroutine do_bcs(full_pi, y, nfits, js, error_bars, sigma2, eta, jcutoff, penaltyfxn, reweight)
-    real(dp), pointer, intent(in) :: full_pi(:,:), y(:)
+  !!<parameter name="reweight_" regular="true">When specified, the reweighted BCS
+  !!routine is used, otherwise a normal ell_1 minimization is used.</parameter>
+  !!<parameter name="seed" regular="true">The seed for the random number generator; set using the
+  !!system clock if unspecified.</parameter>
+  subroutine do_bcs(full_pi, y, nfits, js, error_bars, fit_rms, fit_err, hold_rms_, hold_err_, &
+                    nholdout_, sigma2_, eta_, jcutoff_, penaltyfxn_, reweight_, seed)
+    real(dp), allocatable, intent(in) :: full_pi(:,:), y(:)
     integer :: nfits
-    real(dp), intent(out) :: js(nfits, size(full_pi, 2)), error_bars(nfits, size(full_pi, 2))
-    real(dp), intent(in) :: sigma2, eta, jcutoff
-    character(len=6), intent(in) :: penaltyfxn
+    real(dp), intent(inout) :: js(nfits, size(full_pi, 2)), error_bars(nfits, size(full_pi, 2))
+    real(dp), intent(inout) :: fit_rms(nfits), fit_err(nfits)
+    integer, intent(inout), optional :: nholdout_
+    real(dp), intent(inout), optional :: hold_rms_(nfits), hold_err_(nfits)
+    real(dp), intent(inout), optional :: sigma2_(nfits), eta_, jcutoff_
+    character(len=6), intent(in), optional :: penaltyfxn_
+    logical, intent(in), optional :: reweight_
+    integer, optional, allocatable :: seed(:)
+    
+    !Handle all the optional parameters; these have the same descriptions as their parameter
+    !summary tags decorating the subroutine.
+    real(dp) :: sigma2, eta, jcutoff
+    character(len=6) :: penaltyfxn
+    logical :: reweight
 
+    !Here it may seem counter-intuitive to have a temporary vector for 'js' and 'error_bars'
+    !for performing multiple fits; we could just write the result directly into the matrix
+    !of solution vectors. However, we want the do_reweighted() and do_normal() subroutines
+    !to have nice signatures for single fitting use.
+    !!<local name="tjs">A single column of j solution vectors for re-using in the loop.</local>
+    !!<local name="terror_bars">A single column of error bars for the 'js' vector.</local>
+    !!<local name="nsets, nbasis">The number of data sets (rows) and function evalutions (cols)
+    !!in the @CREF[param.full_pi] matrix.</local>
+    !!<local name="nfitsets">The number of data sets allowed to be used for fitting.
+    !!Will be all of them unless holdout sets for validation are specified.</local>
+    !!<local name="nlines, nvalues">The number of lines and values in a 2D data file being
+    !!read in (for example 'holdout').</local>
+    !!<local name="nfixed">The number of data sets specified in the 'fixed' file.</local>
+    !!<local name="funit">The next available file unit for reading data files.</local>
+    !!<local name="sub_pi, sub_y">A subset of the @CREF[param.full_pi] matrix rows (sub_pi) and
+    !!columns (sub_y) respectively for a single 'fitlist'/'holdlist' pair.</local>
+    !!<local name="fit_pred, hold_pred">The predicted measurements for the fitting and
+    !!holdout sets respectively using the solution vector calculated with BCS.</local>
+    real(dp) :: tjs(size(full_pi, 2)), terror_bars(size(full_pi, 2))
+    integer, allocatable :: fitlist(:,:), holdlist(:,:), fixed(:)
+    integer :: i, j, k, nsets, nbasis, nfitsets, nlines, nvalues, funit
+    integer :: nfixed
+    real(dp), allocatable :: sub_pi(:,:), sub_y(:), fit_pred(:), hold_pred(:)
+
+    !If the fit needs to be validated afterward, we need to split the data sets in 'full_pi'
+    !into sets for fitting and those held out for validation afterward.
+    nsets = size(full_pi, 1)
+    nbasis = size(full_pi, 2)
+    nfitsets = 0
+
+    if (present(nholdout_) .and. nholdout_ .ne. 0) then
+       allocate(fitlist(nfits, nsets-nholdout_), holdlist(nfits, nholdout_))
+       if (present(seed)) then
+          call partition_holdout_set(nfits, nsets, nholdout_, fitlist, holdlist, seed)
+       else
+          call partition_holdout_set(nfits, nsets, nholdout_, fitlist, holdlist)
+       end if
+       nfitsets = nsets - nholdout_
+    end if
+
+    !The user can also specify the holdout set using a file called 'holdout' in the current
+    !directory. If it exists, set up the fitlist and hold list arrays.
+    if ((.not. allocated(fitlist)) .and. file_exists('holdout')) then
+       call linevalue_count('holdout', 7, '#', nlines, nvalues)
+       if (nvalues .gt. nsets .or. nlines .ne. nfits) then
+          write(*, *) "Invalid dimensions for 'holdout' file: ", nlines, " x ", nvalues
+          write(*, *) "We need as many rows in 'holdout' as requested fits: ", nfits
+          write(*, *) "The number of holdout values must be less than total data sets: ", nsets
+          stop
+       end if
+       
+       open(newunit(funit), file='holdout')
+       allocate(holdlist(nlines, nvalues))
+       read(funit, *)(holdlist(i,:), i=1, nlines)
+       close(funit)
+
+       !Now we construct the fit list by taking the complement of those indices that
+       !are present in the hold list.
+       allocate(fitlist(nlines, nsets-nvalues))
+       k = 1
+       do i=1, nlines
+          do j=1, nsets
+             if (.not. any(j .eq. holdlist(i,:))) then
+                fitlist(i,k) = j
+                k = k+1
+             end if
+          end do
+       end do
+       nfitsets = nsets - nvalues
+       if (present(nholdout_)) nholdout_ = nvalues
+    end if
+
+    !If no holdout set is specified for validation, we use the entire fitting set.
+    if (nfitsets .eq. 0) nfitsets = nsets
+    
+    !One more option that is useful sometimes is to define a collection of data sets that *must*
+    !be kept in the fitting set always.
+    if (file_exists('fixed')) then
+       call linevalue_count('fixed', 5, '#', nlines, nfixed)
+       if (nfixed .gt. nsets) then
+          write(*, *) "The number of fixed data sets specified exceeds the possible value: ", nsets
+          stop
+       end if
+
+       allocate(fixed(nfixed))
+       open(newunit(funit), file='fixed')
+       read(funit, *) fixed
+       close(funit)
+    else
+       nfixed = 0
+    end if
+
+    !Next we set the default values for the optional parameters if they are not present.
+    if (present(eta_)) then
+       eta = eta_
+    else
+       eta = 1e-8
+    end if
+    if (present(jcutoff_)) then
+       jcutoff = jcutoff_
+    else
+       jcutoff = 1e-3
+    end if
+    if (present(penaltyfxn_)) then
+       penaltyfxn = penaltyfxn_
+    else
+       penaltyfxn = 'arctan'
+    end if
+    if (present(reweight_)) then
+       reweight = reweight_
+    else
+       reweight = .true.
+    end if
+
+    !The size of the arrays for making predictions don't change between fitting
+    !iterations, so we can re-use them.
+    allocate(fit_pred(nfitsets))
+    if (allocated(holdlist)) allocate(hold_pred(size(holdlist, 1)))
+    
+    do i=1, nfits
+       !Because of the possible random selection of fitting sets and validation sets,
+       !we need to allocate separately for each fit.
+       allocate(sub_pi(nfitsets, nbasis), sub_y(nfitsets))
+       do j=1, nfixed
+          sub_pi(j,:) = full_pi(fixed(j),:)
+          sub_y(j) = y(fixed(j))
+       end do
+       do j=(nfixed+1), nfitsets
+          if (allocated(fitlist)) then
+             sub_pi(j,:) = full_pi(fitlist(i, j-nfixed),:)
+             sub_y(j) = y(fitlist(i, j-nfixed))
+          else
+             sub_pi(j,:) = full_pi(j-nfixed,:)
+             sub_y(j) = y(j-nfixed)
+          end if
+       end do
+
+       !Calculate a special sigma2 value for this fitting set and measurement vector.
+       if (present(sigma2_)) then
+          if (i .lt. size(sigma2_) .and. sigma2_(i) .ne. 0) then
+             sigma2 = sigma2_(i)
+          else
+             sigma2 = get_sigma2(sub_y, nfitsets)
+          end if
+       else
+          sigma2 = get_sigma2(sub_y, nfitsets)
+          if (present(sigma2_)) sigma2_(i) = sigma2
+       end if
+
+       tjs = 0
+       terror_bars = 0
+       if (reweight) then
+          call do_reweighted(sub_pi, sub_y, sigma2, eta, jcutoff, penaltyfxn, tjs, terror_bars)
+       else
+          call do_normal(sub_pi, sub_y, sigma2, eta, tjs, terror_bars)
+       end if
+       
+       !Copy the solution vector and error bars across; if this seems wasteful, see
+       !the comment above the variable declaration for tjs and terror_bars.
+       js(i,:) = tjs(:)
+       error_bars(i,:) = terror_bars(:)
+
+       !We have the resulting solution vector and its error bars; at the least we calculate
+       !the RMS error for the fitting set; but if a holdout set was also specified, we need
+       !to calculate the error for that as well.
+       fit_pred(:) = (/ (dot_product(sub_pi(k,:), tjs(:)), k=1, nfitsets) /)
+       fit_err(i) = sum(abs(fit_pred - sub_y))
+       fit_rms(i) = sqrt(sum((fit_pred - sub_y)**2)/nfitsets)
+       deallocate(sub_pi, sub_y)
+       
+       !Check for the presence of a holdout set; if we have one calculate the RMS and
+       !absolute error for that too.
+       if (allocated(holdlist) .and. (present(hold_err_) .or. present(hold_rms_))) then
+          allocate(sub_pi(size(holdlist, 2), nbasis), sub_y(size(holdlist, 2)))
+          do j=1, size(holdlist, 2)
+             sub_pi(j, :) = full_pi(holdlist(i, j), :)
+             sub_y(j) = y(holdlist(i, j))
+          end do
+          
+          hold_pred(:) = (/ (dot_product(sub_pi(k,:), tjs(:)), k=1, size(holdlist, 2)) /)
+          if (present(hold_err_)) hold_err_(i) = sum(abs(fit_pred - sub_y))
+          if (present(hold_rms_)) hold_rms_(i) = sqrt(sum((fit_pred - sub_y)**2)/size(holdlist, 2))
+          deallocate(sub_pi, sub_y)
+       end if
+    end do
   end subroutine do_bcs
 end module bcs

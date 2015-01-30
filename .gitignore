@@ -5,6 +5,8 @@ __pycache__/
 *.*~
 \#*#
 tests/staging/
+staging/
+.#*
 *.tmp
 
 # C extensions
