@@ -1,10 +1,12 @@
 BCS
 ======
 
+If you find this solver useful, please cite it. You are also welcome to send an email letting us know what you are using it for; then we can include it here as an example. If you would like to add some of your systems as unit tests, just create additional data files with new case identifiers and submit a pull request.
+
 Bayesian Compressive Sensing Standalone Solver
 ------
 
-This package makes it easy to find solutions to under-determined matrix problems using the Bayesian Compressive Sensing formalism. See the writeup describing the mathematical background. To get started quickly install the [fortpy](https://github.com/rosenbrockc/fortpy) package from PyPI and run the unit tests:
+This package makes it easy to find solutions to under-determined matrix problems using the Bayesian Compressive Sensing formalism. See the writeup describing the mathematical background (still being created). To get started quickly install the [fortpy](https://github.com/rosenbrockc/fortpy) package from PyPI and run the unit tests:
 
 bash
 ```

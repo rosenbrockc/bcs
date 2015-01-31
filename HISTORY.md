@@ -1,6 +1,16 @@
 Revision History
 ======
 
+Revision 1.0.2
+------
+
+- Updated the README file with citation request and information for contributing.
+
+Revision 1.0.1
+------
+
+- Added the data files for all the unit tests.
+
 Revision 1.0
 ------
 
