@@ -1,6 +1,12 @@
 Revision History
 ======
 
+Revision 1.0.3
+------
+
+- Fixed the unit tests for the `do_bcs()`.
+- Added the write-up explaining the mathematics, though it still needs a table updated.
+
 Revision 1.0.2
 ------
 

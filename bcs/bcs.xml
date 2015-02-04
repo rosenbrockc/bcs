@@ -218,15 +218,38 @@
   </decorates>
   <decorates name="bcs.do_bcs">
     <group name="unittests" purpose="testing">
-      <test identifier="std" description="Test full BCS routine."
+      <test identifier="arctan" description="Test full BCS routine."
 	    timed="true" cases="b1">
-	<output identifier="js.out" folder="./tests" file="bcs_normal_js.out.{}" 
+	<assignment name="penaltyfxn_" constant="'arctan'" />
+	<assignment name="reweight_" constant=".true." />
+	<output identifier="js.out" folder="./tests" file="bcs_reweight_js.out.arctan.{}" 
 		template="float.xml" />
-	<output identifier="ebars.out" folder="./tests" file="bcs_normal_ebars.out.{}" 
+	<output identifier="ebars.out" folder="./tests" file="bcs_reweight_ebars.out.arctan.{}" 
 		template="float.xml" />
-	<target name="js" compareto="js.out" varfile="js.out" when="each" />
-	<target name="error_bars" compareto="ebars.out" varfile="ebars.out" when="each" />
+	<output identifier="rms.out" folder="./tests" file="bcs_reweight_rms.out.arctan.{}" 
+		template="float.xml" />
+	<output identifier="err.out" folder="./tests" file="bcs_reweight_err.out.arctan.{}" 
+		template="float.xml" />
       </test>
+      <test identifier="logsum" description="Test full BCS routine."
+	    timed="true" cases="b1">
+	<assignment name="penaltyfxn_" constant="'logsum'" />
+	<assignment name="reweight_" constant=".true." />
+	<output identifier="js.out" folder="./tests" file="bcs_reweight_js.out.logsum.{}" 
+		template="float.xml" />
+	<output identifier="ebars.out" folder="./tests" file="bcs_reweight_ebars.out.logsum.{}" 
+		template="float.xml" />
+	<output identifier="rms.out" folder="./tests" file="bcs_reweight_rms.out.logsum.{}" 
+		template="float.xml" />
+	<output identifier="err.out" folder="./tests" file="bcs_reweight_err.out.logsum.{}" 
+		template="float.xml" />
+      </test>
+
+      <target name="js" compareto="js.out" varfile="js.out" when="each" />
+      <target name="error_bars" compareto="ebars.out" varfile="ebars.out" when="each" />
+      <target name="fit_rms" compareto="rms.out" varfile="rms.out" when="each" />
+      <target name="fit_err" compareto="err.out" varfile="err.out" when="each" />
+
       <global name="js" type="real" kind="dp" dimensions=":,:" modifiers="allocatable" />
       <global name="error_bars" type="real" kind="dp" dimensions=":,:" modifiers="allocatable" />
       <global name="fit_rms" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
@@ -239,8 +262,6 @@
       
       <assignment name="nfits" constant="3" />
       <assignment name="nholdout_" constant="15" />
-      <assignment name="js" constant="0" allocate="nfits, size(full_pi, 2)" />
-      <assignment name="error_bars" constant="0" allocate="nfits, size(full_pi, 2)" />
       <assignment name="fit_rms" constant="0" allocate="nfits" />
       <assignment name="fit_err" constant="0" allocate="nfits" />
 
@@ -256,10 +277,10 @@
       	<value identifier="seed.in" folder="./tests"
       	       file="seed.in.01" rename="seed.in" />
       </assignment>
-
+      
+      <assignment name="js" constant="0" allocate="nfits, size(full_pi, 2)" />
+      <assignment name="error_bars" constant="0" allocate="nfits, size(full_pi, 2)" />
       <assignment name="jcutoff_" constant="1e-3" />
-      <assignment name="penaltyfxn_" constant="'arctan'" />
-      <assignment name="reweight_" constant=".true." />
     </group>
   </decorates>
 </fortpy>

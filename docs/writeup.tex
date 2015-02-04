@@ -1,0 +1,236 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Short Sectioned Assignment
+% LaTeX Template
+% Version 1.0 (5/5/12)
+%
+% This template has been downloaded from:
+% http://www.LaTeXTemplates.com
+%
+% Original author:
+% Frits Wenneker (http://www.howtotex.com)
+%
+% License:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[paper=a4, fontsize=11pt]{scrartcl} % A4 paper and 11pt font size
+
+\usepackage[T1]{fontenc} % Use 8-bit encoding that has 256 glyphs
+\usepackage{fourier} % Use the Adobe Utopia font for the document - comment this line to return to the LaTeX default
+\usepackage[english]{babel} % English language/hyphenation
+\usepackage{amsmath,amsfonts,amsthm} % Math packages
+\usepackage{graphicx}
+
+\usepackage{lipsum} % Used for inserting dummy 'Lorem ipsum' text into the template
+
+\usepackage{sectsty} % Allows customizing section commands
+\allsectionsfont{\centering \normalfont\scshape} % Make all sections centered, the default font and small caps
+\usepackage{cleveref}
+\usepackage{fancyhdr} % Custom headers and footers
+\pagestyle{fancyplain} % Makes all pages in the document conform to the custom headers and footers
+\fancyhead{} % No page header - if you want one, create it in the same way as the footers below
+\fancyfoot[L]{} % Empty left footer
+\fancyfoot[C]{} % Empty center footer
+\fancyfoot[R]{\thepage} % Page numbering for right footer
+\renewcommand{\headrulewidth}{0pt} % Remove header underlines
+\renewcommand{\footrulewidth}{0pt} % Remove footer underlines
+\newcommand{\vectornorm}[1]{\left|\left|\,#1\,\right|\right|}
+\newcommand{\norm}[1]{\left|\,#1\,\right|}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\setlength{\headheight}{13.6pt} % Customize the height of the header
+
+\numberwithin{equation}{section} % Number equations within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+\numberwithin{figure}{section} % Number figures within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+\numberwithin{table}{section} % Number tables within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs - comment this line for an assignment with lots of text
+
+%----------------------------------------------------------------------------------------
+%	TITLE SECTION
+%----------------------------------------------------------------------------------------
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}} % Create horizontal rule command with 1 argument of height
+
+\title{	
+\normalfont \normalsize 
+\textsc{Brigham Young University, Department of Physics and Astronomy} \\ [25pt] % Your university, school and/or department name(s)
+\horrule{0.5pt} \\[0.4cm] % Thin top horizontal rule
+\huge Standalone Solver for Bayesian Compressive Sensing \\ % The assignment title
+\horrule{2pt} \\[0.5cm] % Thick bottom horizontal rule
+}
+
+\author{Conrad W Rosenbrock} % Your name
+
+\date{\normalsize\today} % Today's date or a custom date
+
+\begin{document}
+
+\maketitle % Print the title
+
+%----------------------------------------------------------------------------------------
+%	Paper Body Start
+%----------------------------------------------------------------------------------------
+\section{Introduction}
+
+In many physical systems, the number of experimental measurements
+available for fitting a mathematical model is severely constrained by
+time or cost. If the model relies on a fit in an orthonormal basis, a
+linear system of equations develops of the form:
+
+\begin{equation}
+\label{eq:StandardLinearSystem}
+\mathbb{A}\mathbf{j} = \mathbf{y},
+\end{equation}
+
+\noindent where $\mathbf{y}$ represents the experimental measurements
+that the model is being fit t; $\mathbb{A}$ is an $M \times N$ matrix
+of basis function evaluations for each measurement in $\mathbf{y}$; and
+$\mathbf{j}$ is the solution vector, or fit to the model. In cases where
+$M < N$, the system is called underdetermined and has an
+infinite number of solutions (since any vector in the kernel of
+$\mathbb{A}$ can be added to the solution vector $\mathbf{j}$ without
+effect). The question that Compressive Sensing (CS)~\cite{Candes:2008hb}
+ answers is ``which of these infinite solutions is the best one,
+ and how do I find it?''.\\
+
+A typical method for fitting functions to experimental values is to
+choose a set of coefficients $\mathbf{j}$ that minimizes the $\ell_2$
+norm of the predicted measurements relative to the true value $\mathbf{y}$:
+
+\begin{equation}
+\label{eq:Ell2Norm}
+\mathbf{j}_{\ell_2} = \argmin_{\mathbf{j}} \left\{\; \epsilon :
+  ||\mathbb{A}\mathbf{j}-\mathbf{y}||_2 < \epsilon \right\}
+= \argmin_{\mathbf{j}} \left\{\; \epsilon : \left(\sum_i |\mathbb{A}\mathbf{j}-\mathbf{y}|_i^2
+\right)^{\frac{1}{2}} < \epsilon \right\}
+\end{equation}
+
+\noindent where $\epsilon$ is a finite tolerance on the desired error
+in the fit. In compressive sensing, a solution is found using the
+$\ell_1$ norm instead:
+
+\begin{equation}
+\label{eq:Ell1Norm}
+\mathbf{j}_{\textrm{CS}} = \argmin_{\mathbf{j}} \left\{\;
+  \vectornorm{\mathbf{j}}_1 : \vectornorm{\mathbb{A}\mathbf{j}-\mathbf{y}}_2 <
+  \epsilon \right\}.
+\end{equation}
+
+An additional constraint for using CS is that the solution needs to be
+sparse~\cite{Candes:2006es} in $\mathbf{j}$, meaning that there should be many components
+that are close to zero and only a few significant ones. If the
+representation basis is chosen appropriately, physical systems ought
+to be able to be cast within the constraints of CS.\\
+
+The standalone solver assumes that you have collected several sets of
+data, with each set having:
+
+\begin{enumerate}
+\item\label{item:MeasurementVector} an experimental measurement of
+  some sort that is consider to be the true value. It is called
+  $y$ in the code.
+\item\label{item:BasisFunctionEvaluations} evalutions of the function
+  you are trying to fit for each basis function in your model. The
+  final model will be a linear combination of these basis functions.
+\end{enumerate}
+
+Each set of a measurement and the basis function values corresponding
+to that measurement are called a \emph{data set} in the code. The rows
+of the $\mathbb{A}$ matrix (called $\Pi$ in the code) represent
+distinct data sets. The columns are the basis function evaluations for
+each measurement.
+
+In order to use this standalone solver, all you need initially is:
+
+\begin{enumerate}
+\item\label{item:PiMatrix} the $M \times N$ $\Pi$ matrix described above.
+\item\label{item:YVector} the measurement vector $\mathbf{y}$ of
+  length $M$.
+\end{enumerate}
+
+\subsection{Mathematical Constraints}
+
+One important constraint for the system is that the individual
+measurements have to satisfy an incoherence property (discussed in the
+Cand\'es review paper~\cite{Candes:2008hb,Candes:2006es}). It is
+satisfied if your measurements are independent and identically
+distributed (IID) in the sense of a normal distribution. If you have an existing system, you can use the
+\emph{bcs.choose\_n\_random\_sets()} included in the \emph{bcs.f90}
+module to choose a subset of the data sets in the system that are most
+closely IID. The routine returns a list of integers representing the
+indices of the systems (rows in $\Pi$, components of $\mathbf{y}$)
+that should be used in the other BCS fitting routines.\\
+
+See the bibliography for references to a more rigorous discussion~\cite{Ji:2008dd} of
+the constraints for CS and the mathematical concepts and proofs behind
+it. This write-up only serves as a quick guide to getting started. If
+you are doing anything serious, you should familiarize yourself with
+the constraints before using the code as a black-box.
+
+\subsection{Sparsity Enhancement}
+
+If you have constraints on the number of basis functions in your
+solution, you can use a reweighted $\ell_1$ minimization routine with
+custom penalty functions that enhance the sparsity of the
+solution. Because of the complexity of certain models, dropping
+coefficients from the model is not a simple choice: if two $j_i$
+values in the solution vector have similar values, how do you know
+which one will give the best fit?\\
+
+The penalty functions improve sparsity as discussed in Cand\'es paper;
+we include here some new penalty functions not originally introduced
+by Cand\'es~\cite{Candes:2008hh}, some of which are related to transfer functions from
+machine learning and neural networks. As an example of the sparsity
+enhancing effects of each function, consider this list for a
+real-world problem that we solved using this algorithm.
+
+\begin{itemize}
+\item \textbf{No Penalty} $\vectornorm{\mathbf{j}}_1 = 120$, $\Delta_{\textrm{err}}=8.3$.
+\item \textbf{logsum} $\vectornorm{\mathbf{j}}_1 = 48$, $\Delta_{\textrm{err}}=8.3$.
+\item \textbf{arctan} $\vectornorm{\mathbf{j}}_1 = 32$, $\Delta_{\textrm{err}}=8.3$.
+\item \textbf{quarti} $\vectornorm{\mathbf{j}}_1 = 22$, $\Delta_{\textrm{err}}=8.3$.
+\item \textbf{hexics} $\vectornorm{\mathbf{j}}_1 = 13$, $\Delta_{\textrm{err}}=8.3$.
+\item \textbf{octics} $\vectornorm{\mathbf{j}}_1 = 8$, $\Delta_{\textrm{err}}=8.3$.
+\item \textbf{logsig} $\vectornorm{\mathbf{j}}_1 = 2$, $\Delta_{\textrm{err}}=8.3$.
+\end{itemize}
+
+\section{Parameter Descriptions}
+
+In this section, we briefly present the few tunable parameters that
+you can set, which affect the behavior of the solution
+vector. For a given set of parameters, the solution is deterministic.
+Roughly speaking, the algorithms tries to maximize the likelihood
+function (see the Babacan~\cite{Babacan:2010dt} and
+Tipping~\cite{Tipping:hutXJNEK} papers) by choosing basis
+functions to add (i.e. $j_i$ values to include in the sparse solution
+vector). As basis functions are added, removed or have their
+coefficients re-estimated, the maximum likelihood function of our
+model changes (as described in the papers).
+
+\begin{itemize}
+\item $\sigma^2$ represents the initial noise variance in the data. If
+  you don't specify it, the value is calculated as $\left( \left<
+    \mathbf{y}^2 \right>-\left< \mathbf{y} \right>^2 \right)/100$.
+\item $\eta$ is a threshold for stopping the iterations in the
+  algorithm.  If the change between the most recent iteration's
+  $|\Delta ML|_{\textrm{latest}} < \eta |\Delta ML|_{\textrm{best}}$,
+  then the iterations cease. Here $|\Delta ML|_{\textrm{best}}$ is the
+  maximum gain in maximum likelihood achieved over the all iterations
+  so far. Default value is $10^{-8}$
+\item $j_{\textrm{cutoff}}$ is the smallest value any $j_i$ can have
+  and still be included in the model. It is used only when the
+  sparsity-enhancing reweighting routines are used and affects the
+  weighting matrix. Default value is $10^{-3}$.
+\item \emph{penalty} is the name of one of the penalty functions
+  described in the previous section for use in connection with the
+  reweighting algorithm.
+\end{itemize}
+\bibliographystyle{acm}
+\bibliography{library.bib}
+
+\end{document}

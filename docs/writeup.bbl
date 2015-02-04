@@ -1,0 +1,35 @@
+\begin{thebibliography}{1}
+
+\bibitem{Babacan:2010dt}
+{\sc Babacan, S.~D., Molina, R., and Katsaggelos, A.~K.}
+\newblock {Bayesian Compressive Sensing Using Laplace Priors}.
+\newblock {\em Ieee Transactions on Image Processing 19}, 1 (Jan. 2010),
+  53--63.
+
+\bibitem{Candes:2006es}
+{\sc Candes, E., and Romberg, J.}
+\newblock {Sparsity and Incoherence in Compressive Sampling}.
+\newblock {\em arXiv.org\/} (Nov. 2006).
+
+\bibitem{Candes:2008hb}
+{\sc Cand{\`e}s, E.~J., and Wakin, M.~B.}
+\newblock {An Introduction To Compressive Sampling}.
+\newblock {\em IEEE Signal Processing Magazine 25}, 2 (2008), 21--30.
+
+\bibitem{Candes:2008hh}
+{\sc Cand{\`e}s, E.~J., Wakin, M.~B., and Boyd, S.~P.}
+\newblock {Enhancing Sparsity by Reweighted ℓ 1 Minimization}.
+\newblock {\em Journal of Fourier Analysis and Applications 14}, 5-6 (Oct.
+  2008), 877--905.
+
+\bibitem{Ji:2008dd}
+{\sc Ji, S., Xue, Y., and Carin, L.}
+\newblock {Bayesian compressive sensing}.
+\newblock {\em Ieee Transactions on Signal Processing 56}, 6 (June 2008),
+  2346--2356.
+
+\bibitem{Tipping:hutXJNEK}
+{\sc Tipping, M., and Faul, A.}
+\newblock {Fast Marginal Likelihood Maximization for Sparse Bayesian Models}.
+
+\end{thebibliography}
