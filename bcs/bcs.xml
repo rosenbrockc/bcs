@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <fortpy mode="docstring">
   <decorates name="bcs.choose_n_random_sets">
-    <group name="unittests" purpose="testing_skip">
+    <group name="unittests" purpose="testing">
       <test identifier="std" description="Test hypersphere projection
 					  for IID set selection."
 	    timed="true" cases="01">
@@ -24,7 +24,7 @@
     </group>
   </decorates>
   <decorates name="bcs.gram_schmidt">
-    <group name="unittests" purpose="testing_skip">
+    <group name="unittests" purpose="testing">
       <test identifier="std" description="Test orthogonalization of
 					  arbitrary matrix."
 	    timed="true" cases="01,02">
@@ -44,7 +44,7 @@
     </group>
   </decorates>
   <decorates name="bcs.orthogonalize_to_set_list">
-    <group name="unittests" purpose="testing_skip">
+    <group name="unittests" purpose="testing">
       <test identifier="std" description="Test orthogonalization of
 					  single vector to matrix."
 	    timed="true" cases="5x8,30x40">
@@ -64,7 +64,7 @@
     </group>
   </decorates>
   <decorates name="bcs.get_sigma2">
-    <group name="unittests" purpose="testing_skip">
+    <group name="unittests" purpose="testing">
       <test identifier="std" description="Tests calculation of
 					  variance in y."
 	    timed="true" cases="01,02">
@@ -81,7 +81,7 @@
     </group>
   </decorates>
   <decorates name="bcs.do_normal">
-    <group name="unittests" purpose="testing_skip">
+    <group name="unittests" purpose="testing">
       <test identifier="std" description="Performs a standard ell_1 minimization BCS solution."
 	    timed="true" cases="01,02">
  	<output identifier="js.out" folder="./tests" file="js_normal.out.{}" 
@@ -111,7 +111,7 @@
     </group>
   </decorates>
   <decorates name="bcs.do_reweighted">
-    <group name="unittests" purpose="testing_skip">
+    <group name="unittests" purpose="testing">
       <test identifier="std" description="Performs a reweighted ell_1 minimization BCS solution."
 	    timed="true" cases="01,02">
  	<output identifier="js.out" folder="./tests" file="js_reweight.out.{}" 
@@ -125,25 +125,22 @@
       <global name="error_bars" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
       <assignment name="full_pi" value="cp_pi" allocate="true"> 
 	<value identifier="cp_pi" folder="./tests"
-	       file="classpoly_pi.in.{}" rename="classpoly_pi.in" />
+	       file="classpoly_pi.in.{}" rename="pi.in" />
       </assignment>
       <assignment name="y" value="cp_y" allocate="true"> 
 	<value identifier="cp_y" folder="./tests"
-	       file="classpoly_y.in.{}" rename="classpoly_y.in" />
+	       file="classpoly_y.in.{}" rename="y.in" />
       </assignment>
       <assignment name="js" constant="0" allocate="size(full_pi, 2)" />
       <assignment name="error_bars" constant="0" allocate="size(full_pi, 2)" />
-      <assignment name="sigma2" value="cp_sig2" allocate="true"> 
-	<value identifier="cp_sig2" folder="./tests"
-	       file="classpoly_sig2.in.{}" rename="classpoly_sig2.in" />
-      </assignment>
       <assignment name="eta" constant="1e-8" />
+      <assignment name="sigma2" constant="-1" />
       <assignment name="jcutoff" constant="1e-3" />
       <assignment name="penaltyfxn" constant="'arctan'" />
     </group>
   </decorates>
   <decorates name="bcs.predict">
-    <group name="unittests" purpose="testing_skip">
+    <group name="unittests" purpose="testing">
       <test identifier="std" description="Test function value prediction for a solution vector and
 					  pi matrix."
 	    timed="true" cases="01,02">
@@ -164,7 +161,7 @@
     </group>
   </decorates>
   <decorates name="bcs.validate">
-    <group name="unittests" purpose="testing_skip">
+    <group name="unittests" purpose="testing">
       <test identifier="std" description="Test function value prediction validation."
 	    timed="true" cases="01,02">
  	<output identifier="prediction.out" folder="./tests" file="part_y.out.{}" 
@@ -193,7 +190,7 @@
     </group>
   </decorates>
   <decorates name="bcs.partition_holdout_set">
-    <group name="unittests" purpose="testing_skip">
+    <group name="unittests" purpose="testing">
       <test identifier="std" description="Test partitioning for holdout/testing sets."
 	    timed="true" cases="01,02">
  	<output identifier="fitlist.out" folder="./tests" file="fitlist.out.{}" 
@@ -230,6 +227,8 @@
 		template="float.xml" />
 	<output identifier="err.out" folder="./tests" file="bcs_reweight_err.out.arctan.{}" 
 		template="float.xml" />
+	<global name="hold_rms_" ignore="true" />
+	<global name="hold_err_" ignore="true" />
       </test>
       <test identifier="logsum" description="Test full BCS routine."
 	    timed="true" cases="b1">
@@ -243,6 +242,8 @@
 		template="float.xml" />
 	<output identifier="err.out" folder="./tests" file="bcs_reweight_err.out.logsum.{}" 
 		template="float.xml" />
+	<global name="hold_rms_" ignore="true" />
+	<global name="hold_err_" ignore="true" />
       </test>
 
       <target name="js" compareto="js.out" varfile="js.out" when="each" />
@@ -255,8 +256,6 @@
       <global name="fit_rms" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
       <global name="fit_err" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
 
-      <global name="hold_rms_" ignore="true" />
-      <global name="hold_err_" ignore="true" />
       <global name="sigma2_" ignore="true" />
       <global name="eta_" ignore="true" />
       

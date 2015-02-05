@@ -277,7 +277,8 @@ contains
   !!from the diagonal entries of the covariance matrix.</parameter>
   subroutine do_reweighted(full_pi, y, sigma2, eta, jcutoff, penaltyfxn, js, error_bars)
     real(dp), allocatable, intent(in) :: full_pi(:,:), y(:)
-    real(dp), intent(in) :: sigma2, eta, jcutoff
+    real(dp), intent(in) :: eta, jcutoff
+    real(dp), intent(inout) :: sigma2
     character(len=6), intent(in) :: penaltyfxn
     real(dp), intent(out) :: js(size(full_pi, 2)), error_bars(size(full_pi, 2))
 
@@ -323,6 +324,9 @@ contains
        weight_matrix(i,i) = 1
     end do
 
+    !If the value for sigma2 is not right, choose a better one.
+    if (sigma2 .lt. 0) sigma2 = get_sigma2(y, nsets)
+    
     !Here we make a rough estimate of the number of J coefficients that will
     !have non-negligible values (i.e. > 1e-3). We hope since the solution is
     !supposed to be sparse that this condition will hold.

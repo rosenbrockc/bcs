@@ -186,18 +186,32 @@ The penalty functions improve sparsity as discussed in Cand\'es paper;
 we include here some new penalty functions not originally introduced
 by Cand\'es~\cite{Candes:2008hh}, some of which are related to transfer functions from
 machine learning and neural networks. As an example of the sparsity
-enhancing effects of each function, consider this list for a
-real-world problem that we solved using this algorithm.
+enhancing effects of each function, consider Table
+\ref{tab:PenaltyFunctionTable}
+lists values for a few
+real-world problems that we solved using this algorithm. The most
+noticeable advantage is that the sparsity of the solution increases
+drastically for almost no cost in error between the normal BCS
+algorithm and the reweighted one.
 
-\begin{itemize}
-\item \textbf{No Penalty} $\vectornorm{\mathbf{j}}_1 = 120$, $\Delta_{\textrm{err}}=8.3$.
-\item \textbf{logsum} $\vectornorm{\mathbf{j}}_1 = 48$, $\Delta_{\textrm{err}}=8.3$.
-\item \textbf{arctan} $\vectornorm{\mathbf{j}}_1 = 32$, $\Delta_{\textrm{err}}=8.3$.
-\item \textbf{quarti} $\vectornorm{\mathbf{j}}_1 = 22$, $\Delta_{\textrm{err}}=8.3$.
-\item \textbf{hexics} $\vectornorm{\mathbf{j}}_1 = 13$, $\Delta_{\textrm{err}}=8.3$.
-\item \textbf{octics} $\vectornorm{\mathbf{j}}_1 = 8$, $\Delta_{\textrm{err}}=8.3$.
-\item \textbf{logsig} $\vectornorm{\mathbf{j}}_1 = 2$, $\Delta_{\textrm{err}}=8.3$.
-\end{itemize}
+\begin{table}
+\centering
+\begin{tabular}{| l || c | c | c | c | c | c | c |}
+   \hline
+   \# & none  & logsum & arctan & quartic & hexic & octic & logsig \\ \hline
+   A & 110.56 (2.632) & 52 (2.8) & 35 (3.04) & 26.7 (3.25) & 21.6 (3.54) & 14.27 (4.14) & 8 (5.19) \\ \hline
+   B & 94.74 (1.86) & 41 (1.97) & 27.9 (2.09) & 20.5 (2.26) & 13.9 (2.77) & 8.16 (3.31) & 2 (9.79) \\ \hline
+   C & 102.17 (2.81) & 46.9 (3.03) & 31.2 (3.38) & 24.3 (3.67) & 20.4 (4.06) & 15.94 (4.89) & 2 (14.66) \\ \hline
+   \hline
+\end{tabular}
+\caption{Performance of the penalty functions including the octic
+  function for three representative, real-world problems. The first
+  number in each case is the $\ell_1$ norm $\vectornorm{\mathbf{j}}_1$; the
+  second value in parenthesis is the RMS error. In each case, the
+  values were averaged over 100 independent random fits to the data
+  with different validation and training sets each time. }
+\label{tab:PenaltyFunctionTable}
+\end{table}
 
 \section{Parameter Descriptions}
 
