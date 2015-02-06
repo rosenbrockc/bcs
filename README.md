@@ -13,7 +13,7 @@ pip install fortpy
 git clone https://github.com/rosenbrockc/bcs.git
 mkdir bcs/staging
 cd bcs/
-runtests.py bcs/ -staging staging/
+runtests.py bcs/ -stagedir staging/
 ```
 
 The unit tests will compile the BCS solver on your system, execute them and make sure they get the correct results. If the unit tests are successful, you are ready to solve your own systems.
