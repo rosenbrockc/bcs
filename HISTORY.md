@@ -1,6 +1,12 @@
 Revision History
 ======
 
+Revision 1.0.4
+------
+
+- Fixed a segfault with allocating optional `seed` parameters for subroutines that use random numbers.
+- Fixed a segfault with calculating RMS and absolute error for the holdout set.
+
 Revision 1.0.3
 ------
 

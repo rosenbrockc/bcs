@@ -32,13 +32,13 @@ contains
   !!<parameter name="nrandsets" regular="true">The number of random sets to select.</parameter>
   !!<parameter name="selected" regular="true">The indices of the randomly selected data sets (rows in the
   !!@CREF[param.full_pi] matrix.</parameter>
-  !!<parameter name="seed" regular="true">The seed for the random number generator; set using the
+  !!<parameter name="seed_" regular="true">The seed for the random number generator; set using the
   !!system clock if unspecified.</parameter>
-  SUBROUTINE choose_n_random_sets(full_pi, nrandsets, selected, seed)
+  SUBROUTINE choose_n_random_sets(full_pi, nrandsets, selected, seed_)
     real(dp), allocatable :: full_pi(:,:)
     integer, intent(in) :: nrandsets
     integer, intent(inout), pointer :: selected(:)
-    integer, intent(inout), optional, allocatable :: seed(:)
+    integer, intent(inout), optional, allocatable :: seed_(:)
 
     !!<local name="n, clock">The length of the random seed and system clock time.</local>
     !!<local name="nsets, nbasis">The number of data sets and basis function evaluations
@@ -60,17 +60,18 @@ contains
     real(dp) :: closest, distance ! For sorting the candidate structures
     integer :: i, j, keepIdx
     integer :: inList(1)
+    integer, allocatable :: seed(:)
 
-    if (.not. present(seed) .or. (.not. allocated(seed))) then
+    if (.not. present(seed_) .or. (.not. allocated(seed_))) then
        call random_seed(size = n)
        allocate(seed(n))
        call system_clock(count = clock)
        seed = clock + 37 * (/ (i -1, i = 1, n)/)
+       call random_seed(put = seed)
+    else
+       call random_seed(put = seed_)
     end if
     
-    ! Seed the random number generator using the provided or calculated seed.
-    call random_seed(put = seed)
-
     nsets = size(full_pi, 1)
     nbasis = size(full_pi, 2)
 
@@ -386,12 +387,12 @@ contains
   !!for fitting.</parameter>
   !!<parameter name="holdlist">A list of the row indices in 'full_pi' that should be held
   !!out for validation after the fitting.</parameter>
-  !!<parameter name="seed" regular="true">The seed for the random number generator; set using the
+  !!<parameter name="seed_" regular="true">The seed for the random number generator; set using the
   !!system clock if unspecified.</parameter>
-  subroutine partition_holdout_set(nfits, nsets, nholdout, fitlist, holdlist, seed)
+  subroutine partition_holdout_set(nfits, nsets, nholdout, fitlist, holdlist, seed_)
     integer, intent(in) :: nfits, nsets, nholdout
     integer, intent(inout) :: fitlist(nfits, nsets-nholdout), holdlist(nfits, nholdout)
-    integer, optional, allocatable :: seed(:)
+    integer, optional, allocatable :: seed_(:)
 
     !!<local name="n, clock">The length of the random seed and system clock time.</local>
     !!<local name="list">Holds a temporory list of the remaining items once one has
@@ -404,17 +405,18 @@ contains
     integer :: ifit, i, list(nsets)
     real(dp) :: r
     integer :: indx, iset, item
+    integer, allocatable :: seed(:)
 
-    if (.not. present(seed) .or. (.not. allocated(seed))) then
+    if (.not. present(seed_) .or. (.not. allocated(seed_))) then
        call random_seed(size = n)
        allocate(seed(n))
        call system_clock(count = clock)
        seed = clock + 37 * (/ (i -1, i = 1, n)/)
+       call random_seed(put = seed)
+    else
+       call random_seed(put = seed_)
     end if
     
-    ! Seed the random number generator using the provided or calculated seed.
-    call random_seed(put = seed)
-
     do ifit = 1, nfits
        list = (/(i, i=1, nsets)/)
        do iset = 1, nsets
@@ -859,7 +861,6 @@ contains
        fit_pred(:) = (/ (dot_product(sub_pi(k,:), tjs(:)), k=1, nfitsets) /)
        fit_err(i) = sum(abs(fit_pred - sub_y))
        fit_rms(i) = sqrt(sum((fit_pred - sub_y)**2)/nfitsets)
-       deallocate(sub_pi, sub_y)
        
        !Check for the presence of a holdout set; if we have one calculate the RMS and
        !absolute error for that too.
@@ -875,6 +876,7 @@ contains
           if (present(hold_rms_)) hold_rms_(i) = sqrt(sum((fit_pred - sub_y)**2)/size(holdlist, 2))
           deallocate(sub_pi, sub_y)
        end if
+       deallocate(sub_pi, sub_y)
     end do
   end subroutine do_bcs
 end module bcs
