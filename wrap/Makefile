@@ -20,13 +20,13 @@ OBJSF90		= $(SRCF90:.f90=.o)
 all: $(OBJSF90)
 	-rm _bcs.so
 	echo "Creating shared library _bcs.so"
-	-python `which f2py-f90wrap` -c -m _bcs $(WSRCF90) -I. >> /dev/null
+	-f2py-f90wrap -c -m _bcs $(WSRCF90) -I. >> /dev/null
 	echo "done."
 
 $(OBJSF90): %.o: %.f90
 	echo "Compiling: $^"
 	-$(F90) -c $^
-#	-$(F90) -c $(FFLAGS) $^ -o $@ >> $(LOG) 2>> $(LOG)
+	-$(F90) -c $(FFLAGS) $^ -o $@ >> $(LOG) 2>> $(LOG)
 	echo "done."
 
 clean:
