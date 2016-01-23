@@ -6,7 +6,22 @@ If you find this solver useful, please cite it. You are also welcome to send an 
 Bayesian Compressive Sensing Standalone Solver
 ------
 
-This package makes it easy to find solutions to under-determined matrix problems using the Bayesian Compressive Sensing formalism. See the [writeup](https://github.com/rosenbrockc/bcs/blob/master/docs/writeup.pdf) describing the mathematical background. To get started quickly install the [fortpy](https://github.com/rosenbrockc/fortpy) package from PyPI and run the unit tests. We recommend using a [virtualenv](https://pypi.python.org/pypi/virtualenv/12.0.5) for installing fortpy.
+This package makes it easy to find solutions to under-determined matrix problems using the Bayesian Compressive Sensing formalism. See the [writeup](https://github.com/rosenbrockc/bcs/blob/master/docs/writeup.pdf) describing the mathematical background.
+
+Quickstart
+------
+
+The quickest way to get started is to compile the python wrapper on your system. To do so, you will need [`f90wrap`](https://github.com/jameskermode/f90wrap). Then just
+
+```
+cd wrap
+make
+```
+
+Using the Fortran Code
+------
+
+To get started quickly install the [fortpy](https://github.com/rosenbrockc/fortpy) package from PyPI and run the unit tests. We recommend using a [virtualenv](https://pypi.python.org/pypi/virtualenv/12.0.5) for installing fortpy.
 
 ```
 pip install fortpy
