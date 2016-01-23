@@ -1,301 +1,214 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <fortpy mode="docstring">
+  <globals>
+    <defaults folder="./tests" />
+    <assignment name="seed_" value="randseed">
+      <value identifier="randseed" file="seed.in.{}" rename="seed.in" />
+    </assignment>
+    <assignment name="eta" constant="1e-8" />
+    <assignment name="js" constant="0" allocate="size(full_pi, 2)" />
+    <assignment name="error_bars" constant="0"
+		allocate="size(full_pi,2)" />
+    <value identifier="seed.in" file="seed.in.01" rename="seed.in" />
+  </globals>
+  
   <decorates name="bcs.choose_n_random_sets">
-    <group name="unittests" purpose="testing">
-      <test identifier="std" description="Test hypersphere projection
-					  for IID set selection."
-	    timed="true" cases="01">
-	<output identifier="selected.out" folder="./tests" file="selected.out.{}" 
-		template="integer.xml" />
-	<target name="selected" compareto="selected.out"
-		varfile="selected.out" when="each" />
+    <group purpose="testing">
+      <test description="Test hypersphere projection."
+	    cases="01" assignments="seed_"
+	    ignores="outpi_, y_, outy_">
+	<output identifier="selected.out" file="selected.out.{}" />
+	<target name="selected" />
+	<assignment name="nrandsets" constant="20" />
       </test>
-      <assignment name="full_pi" value="small_pi" allocate="true"> 
-	<value identifier="small_pi" folder="./tests"
-	       file="full_pi.in.{}" rename="full_pi.in" />
-      </assignment>
-      <assignment name="seed_" value="randseed">
-	<value identifier="randseed" folder="./tests"
-	       file="seed.in.{}" rename="seed.in" />
-      </assignment>
-      <assignment name="nrandsets" value="vconst">
-	<value identifier="vconst" constant="20" />
+      <test identifier="driver" description="Standalone executable."
+	    timed="true" cases="01" execute="false">
+	<target name="outpi_" varfile="outpi.in" />
+	<target name="outy_" varfile="outy.in" />
+	<assignment name="nrandsets" constant="75" />
+	<assignment name="outpi_" constant="0" allocate="nrandsets, size(full_pi, 2)" />
+	<assignment name="y_">
+	  <value file="y.in.{}" rename="y.in" />
+	</assignment>
+	<assignment name="outy_" constant="0" allocate="nrandsets" />
+      </test>
+      
+      <assignment name="full_pi">
+	<value file="full_pi.in.{}" rename="full_pi.in" />
       </assignment>
     </group>
   </decorates>
   <decorates name="bcs.gram_schmidt">
-    <group name="unittests" purpose="testing">
-      <test identifier="std" description="Test orthogonalization of
-					  arbitrary matrix."
-	    timed="true" cases="01,02">
-	<output identifier="orthogonal.out" folder="./tests" file="orthogonal.out.{}" 
-		template="float.xml" />
-	<target name="Q" compareto="orthogonal.out"
-		varfile="Q.out" when="each" />
+    <group purpose="testing">
+      <test cases="01,02">
+	<output identifier="orthogonal.out" file="orthogonal.out.{}" />
+	<target name="Q" />
       </test>
-      <global name="Q" type="real" kind="dp" modifiers="allocatable"
-	      dimensions=":,:" />
-      <assignment name="A" value="rand_matrix" allocate="true"> 
-	<value identifier="rand_matrix" folder="./tests"
-	       file="rand_matrix.in.{}" rename="rand_matrix.in" />
+      <assignment name="A"> 
+	<value file="rand_matrix.in.{}" rename="rand_matrix.in" />
       </assignment>
-      <assignment name="Q" constant="0"
-		  allocate="size(A, 1), size(A, 2)" />
+      <assignment name="Q" constant="0" allocate="size(A, 1), size(A, 2)" />
     </group>
   </decorates>
   <decorates name="bcs.orthogonalize_to_set_list">
-    <group name="unittests" purpose="testing">
-      <test identifier="std" description="Test orthogonalization of
-					  single vector to matrix."
-	    timed="true" cases="5x8,30x40">
-	<output identifier="orthogonal.out" folder="./tests" file="orthog_vector.out.{}" 
-		template="float.xml" />
-	<target name="randvec" compareto="orthogonal.out"
-		varfile="randvec.out" when="each" />
+    <group purpose="testing">
+      <test cases="5x8,30x40">
+	<output identifier="orthogonal.out" file="orthog_vector.out.{}" />
+	<target name="randvec" varfile="randvec.out" />
       </test>
-      <assignment name="veclist" value="vec_list" allocate="true"> 
-	<value identifier="vec_list" folder="./tests"
-	       file="vector_list.in.{}" rename="vector_list.in" />
+      <assignment name="veclist">
+	<value file="vector_list.in.{}" rename="vector_list.in" />
       </assignment>
-      <assignment name="randvec" value="rand_vec" allocate="true"> 
-	<value identifier="rand_vec" folder="./tests"
-	       file="rand_vector.in.{}" rename="rand_vector.in" />
+      <assignment name="randvec">
+	<value file="rand_vector.in.{}" rename="rand_vector.in" />
       </assignment>
     </group>
   </decorates>
   <decorates name="bcs.get_sigma2">
-    <group name="unittests" purpose="testing">
-      <test identifier="std" description="Tests calculation of
-					  variance in y."
-	    timed="true" cases="01,02">
-	<output identifier="sigma2.out" folder="./tests" file="sigma2.out.{}" 
-		template="float.xml" />
-	<target name="[default]" compareto="sigma2.out"
-		varfile="sigma2.out" when="each" />
+    <group purpose="testing">
+      <test cases="01,02">
+	<output identifier="sigma2.out" file="sigma2.out.{}" />
+	<target name="[default]" varfile="sigma2.out" />
       </test>
-      <assignment name="y" value="rand_y" allocate="true"> 
-	<value identifier="rand_y" folder="./tests"
-	       file="rand_y.in.{}" rename="rand_y.in" />
+      <assignment name="y">
+	<value file="rand_y.in.{}" rename="rand_y.in" />
       </assignment>
       <assignment name="nfit" constant="size(y, 1)" />
     </group>
   </decorates>
   <decorates name="bcs.do_normal">
-    <group name="unittests" purpose="testing">
-      <test identifier="std" description="Performs a standard ell_1 minimization BCS solution."
-	    timed="true" cases="01,02">
- 	<output identifier="js.out" folder="./tests" file="js_normal.out.{}" 
-		template="float.xml" />
-	<output identifier="ebars.out" folder="./tests" file="ebars_normal.out.{}" 
-		template="float.xml" />
-	<target name="js" compareto="js.out" varfile="js.out" when="each" />
-	<target name="error_bars" compareto="ebars.out" varfile="ebars.out" when="each" />
+    <group purpose="testing">
+      <test cases="01,02" assignments="eta; js; error_bars">
+ 	<output identifier="js.out" file="js_normal.out.{}" />
+	<output identifier="ebars.out" file="ebars_normal.out.{}" />
+	<target name="js" compareto="js.out" varfile="js.out" />
+	<target name="error_bars" compareto="ebars.out" varfile="ebars.out" />
       </test>
-      <global name="js" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-      <global name="error_bars" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-      <assignment name="full_pi" value="cp_pi" allocate="true"> 
-	<value identifier="cp_pi" folder="./tests"
-	       file="classpoly_pi.in.{}" rename="classpoly_pi.in" />
+      <assignment name="full_pi">
+	<value file="classpoly_pi.in.{}" rename="classpoly_pi.in" />
       </assignment>
-      <assignment name="y" value="cp_y" allocate="true"> 
-	<value identifier="cp_y" folder="./tests"
-	       file="classpoly_y.in.{}" rename="classpoly_y.in" />
+      <assignment name="y">
+	<value file="classpoly_y.in.{}" rename="classpoly_y.in" />
       </assignment>
-      <assignment name="js" constant="0" allocate="size(full_pi, 2)" />
-      <assignment name="error_bars" constant="0" allocate="size(full_pi, 2)" />
-      <assignment name="sigma2" value="cp_sig2" allocate="true"> 
-	<value identifier="cp_sig2" folder="./tests"
-	       file="classpoly_sig2.in.{}" rename="classpoly_sig2.in" />
+      <assignment name="sigma2">
+	<value file="classpoly_sig2.in.{}" rename="classpoly_sig2.in" />
       </assignment>
-      <assignment name="eta" constant="1e-8" />
     </group>
   </decorates>
   <decorates name="bcs.do_reweighted">
-    <group name="unittests" purpose="testing">
-      <test identifier="std" description="Performs a reweighted ell_1 minimization BCS solution."
-	    timed="true" cases="01,02">
- 	<output identifier="js.out" folder="./tests" file="js_reweight.out.{}" 
-		template="float.xml" />
-	<output identifier="ebars.out" folder="./tests" file="ebars_reweight.out.{}" 
-		template="float.xml" />
-	<target name="js" compareto="js.out" varfile="js.out" when="each" />
-	<target name="error_bars" compareto="ebars.out" varfile="ebars.out" when="each" />
+    <group purpose="testing">
+      <test cases="b1" ignores="hold_pi, hold_y"
+	    assignments="eta; js; error_bars">
+ 	<output identifier="js.out" file="js_reweight.out.{}" />
+	<output identifier="ebars.out" file="ebars_reweight.out.{}" />
+	<target name="js" compareto="js.out" varfile="js.out" />
+	<target name="error_bars" compareto="ebars.out"
+		varfile="ebars.out" />
       </test>
-      <global name="js" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-      <global name="error_bars" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-      <assignment name="full_pi" value="cp_pi" allocate="true"> 
-	<value identifier="cp_pi" folder="./tests"
-	       file="classpoly_pi.in.{}" rename="pi.in" />
+      <assignment name="full_pi">
+	<value file="bcs_pi.in.{}" rename="pi.in" />
       </assignment>
-      <assignment name="y" value="cp_y" allocate="true"> 
-	<value identifier="cp_y" folder="./tests"
-	       file="classpoly_y.in.{}" rename="y.in" />
+      <assignment name="y">
+	<value file="bcs_y.in.{}" rename="y.in" />
       </assignment>
-      <assignment name="js" constant="0" allocate="size(full_pi, 2)" />
-      <assignment name="error_bars" constant="0" allocate="size(full_pi, 2)" />
-      <assignment name="eta" constant="1e-8" />
       <assignment name="sigma2" constant="-1" />
-      <assignment name="jcutoff" constant="1e-3" />
+      <assignment name="jcutoff" constant="1e-6" />
       <assignment name="penaltyfxn" constant="'arctan'" />
     </group>
   </decorates>
   <decorates name="bcs.predict">
-    <group name="unittests" purpose="testing">
-      <test identifier="std" description="Test function value prediction for a solution vector and
-					  pi matrix."
-	    timed="true" cases="01,02">
- 	<output identifier="prediction.out" folder="./tests" file="part_y.out.{}" 
-		template="float.xml" />
-	<target name="prediction" compareto="prediction.out" varfile="prediction.out" when="each" />
+    <group purpose="testing">
+      <test cases="01,02">
+ 	<output identifier="prediction.out" file="part_y.out.{}" />
+	<target name="prediction" varfile="prediction.out" />
       </test>
-      <global name="js" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-      <global name="prediction" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-      <assignment name="pi" value="part_pi" allocate="true"> 
-	<value identifier="part_pi" folder="./tests"
-	       file="part_pi.in.{}" rename="part_pi.in" />
+      <assignment name="pi">
+	<value file="part_pi.in.{}" rename="part_pi.in" />
       </assignment>
-      <assignment name="js" value="normal_js" allocate="true"> 
-	<value identifier="normal_js" folder="./tests"
-	       file="js_normal.out.02" rename="js.in" />
+      <assignment name="js">
+	<value file="js_normal.out.02" rename="js.in" />
       </assignment>
     </group>
   </decorates>
   <decorates name="bcs.validate">
-    <group name="unittests" purpose="testing">
-      <test identifier="std" description="Test function value prediction validation."
-	    timed="true" cases="01,02">
- 	<output identifier="prediction.out" folder="./tests" file="part_y.out.{}" 
-		template="float.xml" />
-	<output identifier="rms.out" folder="./tests" file="valid_rms.out.{}" 
-		template="float.xml" />
-	<output identifier="err.out" folder="./tests" file="valid_err.out.{}" 
-		template="float.xml" />
-	<target name="prediction" compareto="prediction.out" varfile="prediction.out" when="each" />
-	<target name="pred_err" compareto="err.out" varfile="pred_err.out" when="each" />
-	<target name="pred_rms" compareto="rms.out" varfile="pred_rms.out" when="each" />
+    <group purpose="testing">
+      <test cases="01,02">
+ 	<output identifier="prediction.out" file="part_y.out.{}" />
+	<output identifier="rms.out" file="valid_rms.out.{}" />
+	<output identifier="err.out" file="valid_err.out.{}" />
+	<target name="prediction" compareto="prediction.out" varfile="prediction.out" />
+	<target name="pred_err" compareto="err.out" varfile="pred_err.out" />
+	<target name="pred_rms" compareto="rms.out" varfile="pred_rms.out" />
       </test>
-      <global name="js" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-      <assignment name="pi" value="part_pi" allocate="true"> 
-	<value identifier="part_pi" folder="./tests"
-	       file="part_pi.in.{}" rename="part_pi.in" />
+      <assignment name="pi"> 
+	<value file="part_pi.in.{}" rename="part_pi.in" />
       </assignment>
-      <assignment name="js" value="normal_js" allocate="true"> 
-	<value identifier="normal_js" folder="./tests"
-	       file="js_normal.out.02" rename="js.in" />
+      <assignment name="js">
+	<value file="js_normal.out.02" rename="js.in" />
       </assignment>
-      <assignment name="y" value="valid_y" allocate="true"> 
-	<value identifier="valid_y" folder="./tests"
-	       file="valid_y.in.{}" rename="y.in" />
+      <assignment name="y">
+	<value file="valid_y.in.{}" rename="y.in" />
       </assignment>
     </group>
   </decorates>
   <decorates name="bcs.partition_holdout_set">
-    <group name="unittests" purpose="testing">
-      <test identifier="std" description="Test partitioning for holdout/testing sets."
-	    timed="true" cases="01,02">
- 	<output identifier="fitlist.out" folder="./tests" file="fitlist.out.{}" 
-		template="integer.xml" />
-	<output identifier="holdlist.out" folder="./tests" file="holdlist.out.{}" 
-		template="integer.xml" />
-	<target name="fitlist" compareto="fitlist.out" varfile="fitlist.out" when="each" />
-	<target name="holdlist" compareto="holdlist.out" varfile="holdlist.out" when="each" />
+    <group purpose="testing">
+      <test cases="01,02" assignments="seed_">
+ 	<output identifier="fitlist.out" file="fitlist.out.{}" />
+	<output identifier="holdlist.out" file="holdlist.out.{}" />
+	<target name="fitlist" compareto="fitlist.out" varfile="fitlist.out" />
+	<target name="holdlist" compareto="holdlist.out" varfile="holdlist.out" />
       </test>
-      <global name="fitlist" type="integer" dimensions=":,:" modifiers="allocatable" />
-      <global name="holdlist" type="integer" dimensions=":,:" modifiers="allocatable" />
       <assignment name="nfits" constant="15" />
       <assignment name="nsets" constant="55" />
       <assignment name="nholdout" constant="10" />
       <assignment name="fitlist" constant="0" allocate="nfits, nsets-nholdout" />
       <assignment name="holdlist" constant="0" allocate="nfits, nholdout" />
-      <assignment name="seed_" value="seed.in" allocate="true">
-      	<value identifier="seed.in" folder="./tests"
-      	       file="seed.in.{}" rename="seed.in" />
-      </assignment>
     </group>
   </decorates>
   <decorates name="bcs.do_bcs">
-    <group name="unittests" purpose="testing">
-      <test identifier="arctan" description="Test full BCS routine."
-	    timed="true" cases="b1">
+    <group purpose="testing" ignores="sigma2_, eta_">
+      <test identifier="arctan" cases="b1" ignores="hold_rms_, hold_err_">
 	<assignment name="penaltyfxn_" constant="'arctan'" />
 	<assignment name="reweight_" constant=".true." />
-	<output identifier="js.out" folder="./tests" file="bcs_reweight_js.out.arctan.{}" 
-		template="float.xml" />
-	<output identifier="ebars.out" folder="./tests" file="bcs_reweight_ebars.out.arctan.{}" 
-		template="float.xml" />
-	<output identifier="rms.out" folder="./tests" file="bcs_reweight_rms.out.arctan.{}" 
-		template="float.xml" />
-	<output identifier="err.out" folder="./tests" file="bcs_reweight_err.out.arctan.{}" 
-		template="float.xml" />
-	
-	<global name="hold_rms_" ignore="true" />
-	<global name="hold_err_" ignore="true" />
-	<assignment name="seed" value="seed.in" allocate="true">
-      	  <value identifier="seed.in" folder="./tests"
-      		 file="seed.in.01" rename="seed.in" />
-	</assignment>
+	<auto names="js, ebars, rms, err">
+	  <output identifier="$.out" file="bcs_reweight_$.out.arctan.{}" />  
+	</auto>
+	<assignment name="seed" value="global:seed.in" />
       </test>
-      <test identifier="logsum" description="Test full BCS routine."
-	    timed="true" cases="b1">
+      <test identifier="logsum" cases="b1" ignores="hold_rms_, hold_err_">
 	<assignment name="penaltyfxn_" constant="'logsum'" />
 	<assignment name="reweight_" constant=".true." />
-	<output identifier="js.out" folder="./tests" file="bcs_reweight_js.out.logsum.{}" 
-		template="float.xml" />
-	<output identifier="ebars.out" folder="./tests" file="bcs_reweight_ebars.out.logsum.{}" 
-		template="float.xml" />
-	<output identifier="rms.out" folder="./tests" file="bcs_reweight_rms.out.logsum.{}" 
-		template="float.xml" />
-	<output identifier="err.out" folder="./tests" file="bcs_reweight_err.out.logsum.{}" 
-		template="float.xml" />
-	      
-	<global name="hold_rms_" ignore="true" />
-	<global name="hold_err_" ignore="true" />
-	<assignment name="seed" value="seed.in" allocate="true">
-      	  <value identifier="seed.in" folder="./tests"
-      		 file="seed.in.01" rename="seed.in" />
-	</assignment>
+	<auto names="js, ebars, rms, err">
+	  <output identifier="$.out" file="bcs_reweight_$.out.logsum.{}" />  
+	</auto>
+	<assignment name="seed" value="global:seed.in" />
       </test>
-      <test identifier="driver" description="Compile a driver for the full BCS."
-	    timed="true" execute="false">
+      <test identifier="driver" execute="false" ignores="seed">
 	<assignment name="penaltyfxn_" constant="'arctan'" />
 	<assignment name="reweight_" constant=".true." />
-	<target name="hold_rms_" varfile="holdrms.out" when="each" />
-	<target name="hold_err_" varfile="holderr.out" when="each" />
-
-	<global name="hold_rms_" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-	<global name="hold_err_" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-	<global name="seed" ignore="true" />
+	<target name="hold_rms_" varfile="holdrms.out" />
+	<target name="hold_err_" varfile="holderr.out" />
 	<assignment name="hold_rms_" constant="0" allocate="nfits" />
 	<assignment name="hold_err_" constant="0" allocate="nfits" />
       </test>
 
-      <target name="js" compareto="js.out" varfile="js.out" when="each" />
-      <target name="error_bars" compareto="ebars.out" varfile="ebars.out" when="each" />
-      <target name="fit_rms" compareto="rms.out" varfile="rms.out" when="each" />
-      <target name="fit_err" compareto="err.out" varfile="err.out" when="each" />
+      <target name="js" compareto="js.out" varfile="js.out" />
+      <target name="error_bars" compareto="ebars.out" varfile="ebars.out" />
+      <target name="fit_rms" compareto="rms.out" varfile="rms.out" />
+      <target name="fit_err" compareto="err.out" varfile="err.out" />
       
-      <global name="js" type="real" kind="dp" dimensions=":,:" modifiers="allocatable" />
-      <global name="error_bars" type="real" kind="dp" dimensions=":,:" modifiers="allocatable" />
-      <global name="fit_rms" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-      <global name="fit_err" type="real" kind="dp" dimensions=":" modifiers="allocatable" />
-
-      <global name="sigma2_" ignore="true" />
-      <global name="eta_" ignore="true" />
-      
-      <assignment name="nfits" constant="3" />
-      <assignment name="nholdout_" constant="15" />
+      <assignment name="nfits" constant="10" />
+      <assignment name="nholdout_" constant="300" />
       <assignment name="fit_rms" constant="0" allocate="nfits" />
       <assignment name="fit_err" constant="0" allocate="nfits" />
 
-      <assignment name="full_pi" value="bcs_pi" allocate="true"> 
-	<value identifier="bcs_pi" folder="./tests"
-	       file="bcs_pi.in.{}" rename="pi.in" />
+      <assignment name="full_pi">
+	<value file="bcs_pi.in.{}" rename="pi.in" />
       </assignment>
-      <assignment name="y" value="bcs_y" allocate="true"> 
-	<value identifier="bcs_y" folder="./tests"
-	       file="bcs_y.in.{}" rename="y.in" />
+      <assignment name="y">
+	<value file="bcs_y.in.{}" rename="y.in" />
       </assignment>
-      
       <assignment name="js" constant="0" allocate="nfits, size(full_pi, 2)" />
       <assignment name="error_bars" constant="0" allocate="nfits, size(full_pi, 2)" />
       <assignment name="jcutoff_" constant="1e-3" />

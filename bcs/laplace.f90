@@ -9,7 +9,6 @@ use matrix_sets
   !! - Call iterator.initialize(Phi, y, sigma2, eta)
   !! - Call iterator.iterate(Js, out Js_indices, error_bars, out next_PIs, out returnsigma2).</usage>
   type, public:: laplace_iterator
-     private
      !!<member name="Phi">The measurement matrix.</member>
      !!<member name="y">The compressive sensing measurements.</member>
      real(dp), pointer :: Phi(:,:), y(:)
@@ -103,7 +102,7 @@ contains
 
     !Prepare everything for iteration
     call this%pre_execution()
-  end subroutine
+  end subroutine initialize_laplace
 
   !!<summary>Prepares the iterator to perform another iteration in a reweighted ell1
   !!minimization scheme.</summary>
@@ -114,7 +113,7 @@ contains
     deallocate(this%Sigma, this%mu)
     deallocate(this%indices, this%selected)
     deallocate(this%alpha, this%subPhi)
-  end subroutine
+  end subroutine laplace_reset
 
   !!<summary>Performs iterations of the fast laplace bcs until convergence.</summary>
   !!<parameter name="Js">The  solution vector to the BCS problem.</parameter>
@@ -276,10 +275,10 @@ contains
       !Re-estimation of these comes from Tipping Appendix
       ki = delta / (1 + Sigmaii*delta)
       mu = mu - ki * mui * Sigmai(:,1) !Eq 34 Tipping
-      this%Sigma = Sigma - ki * matmul(Sigmai, transpose(Sigmai)) !Eq 33 Tipping
+      this%Sigma = this%Sigma - ki * matmul(Sigmai, transpose(Sigmai)) !Eq 33 Tipping
       comm = pack(matmul(transpose(Phi), matmul(subPhi,Sigmai)) / this%sigma2, .true.)
-      this%S = S + ki * comm**2 !Eq 35
-      this%Q = Q + ki * mui * comm !Eq 36
+      this%S = this%S + ki * comm**2 !Eq 35
+      this%Q = this%Q + ki * mui * comm !Eq 36
       !Overwrite the value of alpha for next iteration
       this%alpha(which(1)) = thisalpha
     end associate
@@ -509,7 +508,7 @@ contains
       Sigmaii = Sigma(which(1),which(1))
       mui = this%mu(which(1))
       Sigmai(:,1) = Sigma(:,which(1))
-      this%Sigma = Sigma - matmul(Sigmai, transpose(Sigmai))/Sigmaii
+      this%Sigma = this%Sigma - matmul(Sigmai, transpose(Sigmai))/Sigmaii
 
       !Delete a row and column from the Sigma matrix. nextSigma is 
       allocate(nextSigma(size(Sigma,1)-1,size(Sigma,2)-1))
@@ -529,11 +528,11 @@ contains
     !Overwrite the value of the Sigma matrix
     call move_alloc(nextSigma, this%Sigma)
 
-    associate(S => this%S, Q => this%Q, Phi => this%Phi, subPhi => this%subPhi, &
+    associate(Phi => this%Phi, subPhi => this%subPhi, &
       sigma2 => this%sigma2)
       comm = pack(matmul(transpose(Phi),matmul(subPhi,Sigmai))/sigma2,.true.)
-      this%S = S + comm**2/Sigmaii
-      this%Q = Q + mui/Sigmaii*comm
+      this%S = this%S + comm**2/Sigmaii
+      this%Q = this%Q + mui/Sigmaii*comm
     end associate
   end subroutine
 
@@ -583,9 +582,9 @@ contains
        Nalpha = nextalphas(ire)
        !Make sure that we have valid values for computing the max likelihood
        if (any(Nalpha / (Nalpha + this%ls(ire)) < 0)) then
-          stop 'ERROR:(negative arguement to log 1):  You most likely made a very poor choice for sigma2'
+          stop 'ERROR:(negative argument to log 1):  You most likely made a very poor choice for sigma2'
        endif
-       if (any(this%alpha(which) / (this%alpha(which) + this%ls(ire)) < 0)) stop 'ERROR:(negative arguement to log 2)'
+       if (any(this%alpha(which) / (this%alpha(which) + this%ls(ire)) < 0)) stop 'ERROR:(negative argument to log 2)'
 
        !Compute the max likelihood
        ml(ire) = this%max_l(Nalpha, ire) - this%max_l(this%alpha(which), ire)
@@ -689,10 +688,12 @@ contains
       this%nused = size(indices,1)
       ls = S
       lq = Q
-      ls(indices) = alpha * S(indices)/(alpha-S(indices)) !Eq 53
-      lq(indices) = alpha * Q(indices)/(alpha-S(indices)) !Eq 54
+      ls(indices) = alpha * S(indices)/abs(alpha-S(indices)) !Eq 53
+      lq(indices) = alpha * Q(indices)/abs(alpha-S(indices)) !Eq 54
 
       !We don't allow the user to specify the lambda. Use the one defined in the paper
+      !Using equation (35); initially, lambda = 0, which means that nu=0 by solving
+      !eq. (37) with psi being the PolyGamma[0, x] function.
       lambda = 2 *(this%nused-1)/sum(1/alpha)
 
       !See the numerator in eq 46, we are maximizing that by setting it to 0,
@@ -700,10 +701,10 @@ contains
 
       !A is the only term that can cause complex roots => eqn failure.
       !So we require s - q^2 < 0 or q^2 > s. See note and plots in Tipping
-      !near eq 20.    
-      A = lambda + ls -lq**2
+      !near eq 20.
+      A = lambda * ls**2
       B = 2*lambda*ls+ls**2
-      C = lambda * ls**2
+      C = lambda + ls -lq**2
 
       !See eq 50, theta is the condition used to decide how to change the
       !basis.
@@ -720,7 +721,11 @@ contains
        discriminant = 0
     end where
 
-    nextalphas = (-B-sqrt(discriminant))/(2*A)
+    if (this%lambda /= 0 ) then 
+       nextalphas = (2*A)/(-B + sqrt(discriminant)) !Quadratic solution
+    else 
+       nextalphas = this%ls**2/(this%lq**2 - this%ls) !Linear solution
+    endif
   end subroutine next_alphas
 
   !!<summary>Calculates the initial values of the matrices etc that are required before any iterations

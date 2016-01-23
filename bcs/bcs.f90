@@ -34,11 +34,18 @@ contains
   !!@CREF[param.full_pi] matrix.</parameter>
   !!<parameter name="seed_" regular="true">The seed for the random number generator; set using the
   !!system clock if unspecified.</parameter>
-  SUBROUTINE choose_n_random_sets(full_pi, nrandsets, selected, seed_)
+  !!<parameter name="outpi_" regular="true">The matrix that includes only the selected rows from the random projection.
+  !!</parameter>
+  !!<parameter name="y_" regular="true">The vector of experimental measurements if the user would like them to be
+  !!selected for @CREF[param.outy_].</parameter>
+  !!<parameter name="outy_" regular="true">The vector that includes only the selected measurements from @CREF[param.y_].
+  !!</parameter>
+  SUBROUTINE choose_n_random_sets(full_pi, nrandsets, selected, seed_, outpi_, y_, outy_)
     real(dp), allocatable :: full_pi(:,:)
     integer, intent(in) :: nrandsets
     integer, intent(inout), pointer :: selected(:)
     integer, intent(inout), optional, allocatable :: seed_(:)
+    real(dp), optional :: outpi_(nrandsets, size(full_pi, 2)), y_(size(full_pi, 1)), outy_(nrandsets)
 
     !!<local name="n, clock">The length of the random seed and system clock time.</local>
     !!<local name="nsets, nbasis">The number of data sets and basis function evaluations
@@ -58,7 +65,7 @@ contains
     integer :: nsets, nbasis
     real(dp), allocatable :: randset(:), tempset(:)
     real(dp) :: closest, distance ! For sorting the candidate structures
-    integer :: i, j, keepIdx
+    integer :: i, j, keepIdx, ipi, iy
     integer :: inList(1)
     integer, allocatable :: seed(:)
 
@@ -74,6 +81,8 @@ contains
     
     nsets = size(full_pi, 1)
     nbasis = size(full_pi, 2)
+    ipi = 1
+    iy = 1
 
     allocate(randset(nbasis), tempset(nbasis))
     allocate(selected(nrandsets))
@@ -114,6 +123,14 @@ contains
        end do
        ! Add the data set that was the closest to the random vector in our final list.
        selected(i) = keepIdx
+       if (present(outpi_)) then
+          outpi_(ipi, :) = full_pi(keepIdx, :)
+          ipi = ipi + 1
+       end if
+       if (present(y_) .and. present(outy_)) then
+          outy_(iy) = y_(keepIdx)
+          iy = iy + 1
+       end if
     end do
   end subroutine choose_n_random_sets
 
@@ -123,7 +140,7 @@ contains
   !!isn't as good as householder, it is really simple.</comments>
   !!<parameter name="A" regular="true">The matrix whose columns represent the vectors
   !!to orthogonalize.</parameter>
-  !!<parameter name="Q">The orthogonal matrix from the QR decomposition by
+  !!<parameter name="Q" regular="true">The orthogonal matrix from the QR decomposition by
   !!classic Gram-Schmidt.</parameter>
   subroutine gram_schmidt(A, Q)
     real(dp), intent(in) :: A(:,:)
@@ -223,14 +240,16 @@ contains
     real(dp), allocatable, intent(in) :: y(:)
     integer, intent(in) :: nfit
 
-    !This estimate for sigma^2 is just (<y_ii^2> - <y_ii>^2)/100.
-    get_sigma2 = (sum( (/( y(i)**2, i=1,nfit )/) )/nfit - (sum( (/( y(i), i=1,nfit )/) )/nfit)**2)/100
-    if (get_sigma2 > 100) then
-       print *, "There is a problem with your data (in function get_sigma2). "
-       print *, "sigma^2 =  ", get_sigma2
-       print *, "This value is way too big, there may be some very poor data points in the fitting set."
-       stop
-    end if
+    !!<local name="lg10">The log10 value of the standard deviation for renormalizing.</local>
+    real(dp) :: lg10
+
+    !This estimate for sigma^2 was originally related to the value for \beta suggested by Babacan
+    !following the discussion after algorithm 1 in the paper. CWR adjusted it after some
+    !experimentation and it gave lower errors for the unit test cases and was more stable for the
+    !CEs that were breaking with a negative log error.
+    get_sigma2 = (sum( (/( y(i)**2, i=1,nfit )/) )/nfit - (sum( (/( y(i), i=1,nfit )/) )/nfit)**2)*0.01
+    ! lg10 = log10(get_sigma2)
+    ! get_sigma2 = get_sigma2/(real(10)**ceiling(lg10+1))
   end function get_sigma2
   
   !!<summary>This routine wraps the Bayesian CS routine with an outside loop. Only
@@ -240,8 +259,8 @@ contains
   !!each data set for which we have measurements.</parameter>
   !!<parameter name="sigma2" regular="true">Initial noise variance (default : std(t)^2/1e2).</parameter>
   !!<parameter name="eta" regular="true">Threshold for stopping the iteration algorithm.</parameter>
-  !!<parameter name="js">The solution vector for the reweighted BCS.</parameter>
-  !!<parameter name="error_bars">Error bars for the solution vector @CREF[param.js]; taking
+  !!<parameter name="js" regular="true">The solution vector for the reweighted BCS.</parameter>
+  !!<parameter name="error_bars" regular="true">Error bars for the solution vector @CREF[param.js]; taking
   !!from the diagonal entries of the covariance matrix.</parameter>
   subroutine do_normal(full_pi, y, sigma2, eta, js, error_bars)
     real(dp), allocatable, intent(in) :: full_pi(:,:), y(:)
@@ -259,6 +278,124 @@ contains
     call iterator%iterate(js, error_bars, returnsigma2)
     deallocate(iterator)
   end subroutine do_normal
+
+  !!<summary>This routine wraps the Bayesian CS routine with an outside loop. Only
+  !!regular ell_1 minimization is done (as opposed to p &lt; 1 reweighted minimization).</summary>
+  !!<parameter name="y" regular="true">The experimental measurements for each data set.</parameter>
+  !!<parameter name="full_pi" regular="true">The full matrix of basis function evaluations for
+  !!each data set for which we have measurements.</parameter>
+  !!<parameter name="sigma2" regular="true">Initial noise variance (default : std(t)^2/1e2).</parameter>
+  !!<parameter name="eta" regular="true">Threshold for stopping the iteration algorithm.</parameter>
+  !!<parameter name="js">The solution vector for the reweighted BCS.</parameter>
+  !!<parameter name="error_bars">Error bars for the solution vector @CREF[param.js]; taking
+  !!from the diagonal entries of the covariance matrix.</parameter>
+  subroutine do_wrapped(full_pi, y, sigma2, eta, js, error_bars)
+    real(dp), intent(in) :: full_pi(:,:), y(:)
+    real(dp), intent(in) :: sigma2, eta
+    real(dp), intent(out) :: js(size(full_pi, 2)), error_bars(size(full_pi, 2))
+
+    !!<local name="iterator">The laplace iterator to find the solution vector.</local>
+    !!<local name="returnsigma2">The value of sigma2 calculated by the laplace
+    !!iterator if one was not provided. We don't actually output this anywhere.</local>
+    real(dp) returnsigma2
+    type(laplace_iterator), pointer :: iterator
+    
+    allocate(iterator)
+    call iterator%initialize(full_pi, y, sigma2, eta)
+    call iterator%iterate(js, error_bars, returnsigma2)
+    deallocate(iterator)
+  end subroutine do_wrapped
+
+  !!<summary>Added by Lance Nelson: 1 Jul 2015 Given a set of Js, this
+  !!routine will find which set has the best rms error over the
+  !!validation set. </summary> 
+  !!<parameter name="trackedJs">list of J vectors for the different solutions.</parameter>-
+    !!<parameter name="hold_pi">The correlations of the holdout set to validate against for dealing
+  !!with the ringing problem. If unspecified, ringing problems may persist.</parameter>
+  !!<parameter name="hold_y">As for @CREF[hold_pi], the corresponding measurements for choosing a
+  !!best solution when ringing occurs.</parameter>
+  integer function bestSolution(hold_pi, hold_y, trackedJs)
+    real(dp), intent(in) :: hold_pi(:,:), hold_y(:)
+    real(dp):: trackedJs(:,:)
+    !!<local name="rmsErrors">The rms error for each fit in @CREF[trackedJs].</local>
+    !!<local name="pred_energies, pred_diffs">The predicted energies for the current fit
+    !!and its absolute difference from the actual answers.</local>
+    !!<local name="nhold">The number of data sets in the holdout set to validate against.</local>
+    real(dp), pointer :: rmsErrors(:)
+    real(dp), allocatable :: pred_energies(:)
+    integer :: nhold
+    integer :: i, l
+
+    nhold = size(hold_pi, 1)
+    allocate(pred_energies(nhold))
+    allocate(rmsErrors(size(trackedJs, 1)))
+    
+    do i = 1, size(trackedJs,1)
+       pred_energies(:) = (/ (dot_product(hold_pi(l,:), trackedJs(i,:)), l=1,nhold) /)
+       rmsErrors(i) = sqrt(sum((pred_energies - hold_y)**2)/nhold)
+    enddo
+    bestSolution = minloc(rmsErrors, 1)
+  end function bestSolution
+
+
+  !!<summary>Added by Lance Nelson: 1 Jul 2015 Determines whether the
+  !!reweighting algorithm is failing to converge.  Sometimes the
+  !!algorithm exhibts a ringing behavior where it oscillates between
+  !!several different solutions rather than converging.  If this is
+  !!the case we want to take action and quickly end the iterative
+  !!procedure while saving the best solution.  Best in this case will
+  !!be determined by the rms error over the validation set. </summary>
+  !!<parameter name="trackedell0s">list of \ell_0 norms for the
+  !!previous five(5) iterations.  </parameter>
+  logical function isRinging(idx, trackedell0s)
+    integer, intent(in) :: trackedell0s(:)
+    integer, intent(in) :: idx
+    
+    !!<local name="subsetell0s">For periodicity 'i', the last 'i' fits tracked.</local>
+    !!<local name="ell0perm">Used to compare @CREF[subsetell0s] to the rest of the fits in
+    !!the tracking list.</local>
+    !!<local name="nTrack">The number of reweight iterations tracked so far.</local>
+    !!<local name="maxLength">The (even) number of iterations that will actually be used
+    !!to assess the periodicity of the system.</local>
+    integer, pointer :: subsetell0s(:)
+    integer, pointer :: ell0perm(:)
+    integer :: nTrack, maxLength, i
+
+    isRinging = .false.  !Default value for ringing
+    if (idx < size(trackedell0s,1)) then  ! If we haven't tracked enough solutions make an accurate assessment, just exit
+       return
+    endif
+
+    nTrack = size(trackedell0s,1)
+    ! To assess any periodicity in the solutions, we need an even length list of solutions.
+    ! In the case that the size of trackJs is odd, let's just consider the last n-1 (which is even)
+    ! elements
+    if (mod(2,nTrack) == 1) then
+       maxLength = nTrack - 1
+    else
+       maxLength = nTrack
+    endif
+    ! This do loop is to check any order periodicity, starting at 2
+    ! and ending at n (or n-1 if n is odd)/2 where n is the number of tracked solutions.
+    ! For example, if you are tracking 11 solutions, this 'do' loop will check
+    ! periodicity of lengths: 2,3,4,and 5.  If larger periodicites ever needed
+    ! to be detected, we would need to increase the number of solutions being
+    ! tracked.  This is controlled using the variable "nTrack" found in this function's
+    ! calling routine.
+    do i = 4, maxLength,2
+       allocate(subsetell0s(i), ell0perm(i) )
+       subsetell0s = trackedell0s(nTrack-i+1:)  !Go get the last i solutions
+       ell0perm = 0
+       ell0perm(i/2+1:) = subsetell0s(1:i/2)  ! Shift the list by i/2 (half its length)
+       ell0perm(:i/2) = subsetell0s(i/2+1:)
+       if (all(ell0perm(:) == subsetell0s(:)) ) then ! See if the two lists are equal
+          isRinging = .true.
+          deallocate(subsetell0s, ell0perm)
+          return
+       endif
+       deallocate(subsetell0s, ell0perm)          
+    enddo
+  end function isRinging
   
   !!<summary>This routine wraps the Bayesian CS routine with an outside loop that
   !! applies the p &lt; 1 norm reweighting scheme.</summary>
@@ -273,15 +410,20 @@ contains
   !!in order to be kept between reweighting iterations.</parameter>
   !!<parameter name="penaltyfxn" regular="true">The name of the penalty function to use. Possible values:
   !!logsum, logsig, arctan, quarti, hexics, octics.</parameter>
-  !!<parameter name="js">The solution vector for the reweighted BCS.</parameter>
-  !!<parameter name="error_bars">Error bars for the solution vector @CREF[param.js]; taking
+  !!<parameter name="js" regular="true">The solution vector for the reweighted BCS.</parameter>
+  !!<parameter name="error_bars" regular="true">Error bars for the solution vector @CREF[param.js]; taking
   !!from the diagonal entries of the covariance matrix.</parameter>
-  subroutine do_reweighted(full_pi, y, sigma2, eta, jcutoff, penaltyfxn, js, error_bars)
+  !!<parameter name="hold_pi">The correlations of the holdout set to validate against for dealing
+  !!with the ringing problem. If unspecified, ringing problems may persist.</parameter>
+  !!<parameter name="hold_y">As for @CREF[hold_pi], the corresponding measurements for choosing a
+  !!best solution when ringing occurs.</parameter>
+  subroutine do_reweighted(full_pi, y, sigma2, eta, jcutoff, penaltyfxn, js, error_bars, hold_pi, hold_y)
     real(dp), allocatable, intent(in) :: full_pi(:,:), y(:)
     real(dp), intent(in) :: eta, jcutoff
     real(dp), intent(inout) :: sigma2
     character(len=6), intent(in) :: penaltyfxn
     real(dp), intent(out) :: js(size(full_pi, 2)), error_bars(size(full_pi, 2))
+    real(dp), optional, intent(in) :: hold_pi(:,:), hold_y(:)
 
     !!<local name="returnsigma2">The value of sigma2 calculated by the laplace
     !!iterator if one was not provided. We don't actually output this anywhere.</local>
@@ -312,6 +454,12 @@ contains
     integer  :: i_0, maxidx(1)
     real(dp) :: jmax(1), epsilon
     integer :: i
+    !!<local name="trackJs, trackell0">For coping with solution "ringing", tracks the fits
+    !!and their ell_0 norms.</local>
+    !!<local name="ntrack">The number of previous reweighting fits to check for periodicity.</local>
+    real(dp), allocatable :: trackJs(:,:)
+    integer,allocatable :: trackell0(:)
+    integer :: idx, best, ntrack
 
     !We start off with the identity matrix for the weight matrix and then
     !update it after each iteration.
@@ -328,24 +476,52 @@ contains
     !If the value for sigma2 is not right, choose a better one.
     if (sigma2 .lt. 0) sigma2 = get_sigma2(y, nsets)
     
+    ntrack = 13
+    allocate(trackJs(ntrack, nbasis), trackell0(ntrack))
+    trackJs = 0
+    trackell0 = 0
+    idx = 0
+    
     !Here we make a rough estimate of the number of J coefficients that will
     !have non-negligible values (i.e. > 1e-3). We hope since the solution is
     !supposed to be sparse that this condition will hold.
     i_0 = nsets/(4*log(real(nbasis)/real(nsets)))
-    prevell0 = 3000
+    prevell0 = -1
     
     do while (.true.)
        w_pi = matmul(full_pi, weight_matrix)
        call iterator%initialize(w_pi, y, sigma2, eta)
        call iterator%iterate(js, error_bars, returnsigma2)
 
-       js(:) = matmul(weight_matrix, js)
+       where(abs(js) .le. jcutoff) js = 0
        ell0 = count(abs(js) > jcutoff)
-       if (abs(ell0 - prevell0) < 5) then
+
+       trackJs(:nTrack - 1,:) = trackJs(2:nTrack,:)  ! Slide all previous Js down one index
+       trackJs(nTrack,:) = js(:) ! Save the current Js at the last index
+       trackell0(:nTrack-1) = trackell0(2:nTrack) ! Slide all the previous \ell_0s down one index
+       trackell0(nTrack) = ell0 ! Save the current \ell_0 norm.
+       if (isRinging(idx, trackell0)) then  ! Check the \ell_0 norms to see if the algorithm is "ringing"
+          if (present(hold_pi) .and. present(hold_y)) then
+             !Since we have a validation set, we can choose the best predictor of the ringing
+             !solutions.
+             best = bestSolution(hold_pi, hold_y, trackJs)
+          else
+             !Choose the one with the smallest ell0 norm since we don't have any validation set to work with.
+             best = minloc(trackell0, 1)
+          end if
+          js(:) = trackJs(best,:)  ! Save the "best" Js.
+          exit
+       endif
+       
+       if (abs(prevell0-ell0) .le. 5) then
           exit
        else
           prevell0 = ell0
        end if
+
+       !We should only reweight the js if we are going to do another reweighting
+       !run on the data.
+       js(:) = matmul(weight_matrix, js)
 
        !Set the largest i_0 j-values to zero so we can get an estimate of
        !the size of the smallest coefficients. They affect the reweighting
@@ -368,7 +544,8 @@ contains
           !This is the inverse W matrix.
           weight_matrix(i,i) = reweight_penalty(js(i), epsilon, penaltyfxn)
        end do
-     
+       
+       idx = idx + 1
        call iterator%reset()
     end do
 
@@ -383,9 +560,9 @@ contains
   !!<parameter name="nsets" regular="true">The total number of sets available to select from.</parameter>
   !!<parameter name="nholdout" regular="true">The number of data sets to
   !!retain for validation.</parameter>
-  !!<parameter name="fitlist">A list of the row indices in 'full_pi' that should be used
+  !!<parameter name="fitlist" regular="true">A list of the row indices in 'full_pi' that should be used
   !!for fitting.</parameter>
-  !!<parameter name="holdlist">A list of the row indices in 'full_pi' that should be held
+  !!<parameter name="holdlist" regular="true">A list of the row indices in 'full_pi' that should be held
   !!out for validation after the fitting.</parameter>
   !!<parameter name="seed_" regular="true">The seed for the random number generator; set using the
   !!system clock if unspecified.</parameter>
@@ -455,15 +632,7 @@ contains
   !!<skip enabled="true">Only involves scalars and system functions/procedures.</skip>
   logical function file_exists(filename)
     character(len=*), intent(in) :: filename
-    integer :: fileio, ioerr
-    
-    open(newunit(fileio), file=filename, status='old', iostat=ioerr)
-    !If there wasn't an error, the file must exist, so the tracker has been enabled
-    if (ioerr .eq. 0) then
-       close(fileio)
-       file_exists = .TRUE.
-    end if
-    !else, the default value is already false.
+    INQUIRE( FILE=filename, EXIST=file_exists) 
   end function file_exists
 
   !!<summary>Returns the number of values in the specified line assuming
@@ -606,7 +775,7 @@ contains
   !!and a BCS solution vector.</summary>
   !!<parameter name="pi" regular="true">A matrix of data sets (rows) with each set evaluated at the basis
   !!functions in @CREF[param.js].</parameter>
-  !!<parameter name="js">The BCS solution vector with coefficients for each basis function
+  !!<parameter name="js" regular="true">The BCS solution vector with coefficients for each basis function
   !!forming the model.</parameter>
   !!<parameter name="prediction" regular="true">The resulting vector of the model's
   !!measurement predictions.</parameter>
@@ -626,7 +795,7 @@ contains
   !!<parameter name="pi" regular="true">A matrix of data sets (rows) with each set evaluated at the basis
   !!functions in @CREF[param.js].</parameter>
   !!<parameter name="y" regular="true">The experimental measurements for each data set.</parameter>
-  !!<parameter name="js">The BCS solution vector with coefficients for each basis function
+  !!<parameter name="js" regular="true">The BCS solution vector with coefficients for each basis function
   !!forming the model.</parameter>
   !!<parameter name="prediction" regular="true">The resulting vector of the model's
   !!measurement predictions.</parameter>
@@ -651,14 +820,14 @@ contains
   !!each data set for which we have measurements.</parameter>
   !!<parameter name="nfits" regular="true">The number of random fits to perform with these args.
   !!Specify a value of 1, for minimal requirements to run.</parameter>
-  !!<parameter name="js">The solution vector for the reweighted BCS. There is one row
+  !!<parameter name="js" regular="true">The solution vector for the reweighted BCS. There is one row
   !!in this matrix for each fit performed.</parameter>
-  !!<parameter name="error_bars">Error bars for the solution vector @CREF[param.js]; taking
+  !!<parameter name="error_bars" regular="true">Error bars for the solution vector @CREF[param.js]; taking
   !!from the diagonal entries of the covariance matrix. There is one row in this matrix
   !!for each fit performed.</parameter>
-  !!<parameter name="hold_rms_, fit_rms">The RMS error for the holdout set and fitting
+  !!<parameter name="hold_rms_, fit_rms" regular="true">The RMS error for the holdout set and fitting
   !!set respectively using the coefficients from the BCS ell_1 minimization.</parameter>
-  !!<parameter name="hold_err_, fit_err">The absolute error for the holdout set and fitting
+  !!<parameter name="hold_err_, fit_err" regular="true">The absolute error for the holdout set and fitting
   !!set respectively using the coefficients from the BCS ell_1 minimization.</parameter>
   !!<parameter name="nholdout_" regular="true">If validation is desired, how many of the data sets in
   !!@CREF[param.full_pi] should be used for validation. If unspecified, then no validation
@@ -744,7 +913,7 @@ contains
           stop
        end if
        
-       open(newunit(funit), file='holdout')
+       open(newunit(funit), file='holdout', action='read')
        allocate(holdlist(nlines, nvalues))
        read(funit, *)(holdlist(i,:), i=1, nlines)
        close(funit)
@@ -778,7 +947,7 @@ contains
        end if
 
        allocate(fixed(nfixed))
-       open(newunit(funit), file='fixed')
+       open(newunit(funit), file='fixed', action='read')
        read(funit, *) fixed
        close(funit)
     else
@@ -810,7 +979,7 @@ contains
     !The size of the arrays for making predictions don't change between fitting
     !iterations, so we can re-use them.
     allocate(fit_pred(nfitsets))
-    if (allocated(holdlist)) allocate(hold_pred(size(holdlist, 1)))
+    if (allocated(holdlist)) allocate(hold_pred(size(holdlist, 2)))
     
     do i=1, nfits
        !Because of the possible random selection of fitting sets and validation sets,
@@ -861,6 +1030,7 @@ contains
        fit_pred(:) = (/ (dot_product(sub_pi(k,:), tjs(:)), k=1, nfitsets) /)
        fit_err(i) = sum(abs(fit_pred - sub_y))
        fit_rms(i) = sqrt(sum((fit_pred - sub_y)**2)/nfitsets)
+       deallocate(sub_pi, sub_y)
        
        !Check for the presence of a holdout set; if we have one calculate the RMS and
        !absolute error for that too.
@@ -872,11 +1042,10 @@ contains
           end do
           
           hold_pred(:) = (/ (dot_product(sub_pi(k,:), tjs(:)), k=1, size(holdlist, 2)) /)
-          if (present(hold_err_)) hold_err_(i) = sum(abs(fit_pred - sub_y))
-          if (present(hold_rms_)) hold_rms_(i) = sqrt(sum((fit_pred - sub_y)**2)/size(holdlist, 2))
+          if (present(hold_err_)) hold_err_(i) = sum(abs(hold_pred - sub_y))
+          if (present(hold_rms_)) hold_rms_(i) = sqrt(sum((hold_pred - sub_y)**2)/size(holdlist, 2))
           deallocate(sub_pi, sub_y)
        end if
-       deallocate(sub_pi, sub_y)
     end do
   end subroutine do_bcs
 end module bcs

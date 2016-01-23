@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 
 *.*~
+*~
+*.mod
+*.o
+.f2py_f2cmap
+
 \#*#
 tests/staging/
 staging/
