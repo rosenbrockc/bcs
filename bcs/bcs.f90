@@ -10,7 +10,7 @@ module bcs
   use num_types
   use laplace
   public choose_n_random_sets, do_bcs, do_reweighted, do_normal, write_results
-  public predict, validate
+  public predict, validate, do_wrapped
 contains
   !!<summary>The purpose of this routine is to find a set of structures that are
   !!uncorrelated (in the sense discussed by Candes in his Compressive

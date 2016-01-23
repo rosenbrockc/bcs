@@ -15,8 +15,22 @@ The quickest way to get started is to compile the python wrapper on your system.
 
 ```
 cd wrap
-make
+make F90=gfortran
+python -c "from bcs import *"
 ```
+
+or you can use `F90=ifort` for that compiler. If no errors are shown, the standalone BCS solver is ready to use. If you have an underdetermined matrix `M` with training vector `y`, then you call call it with:
+
+```python
+import bcs
+from numpy import zeros, std
+j = zeros(len(M[0]))
+ebars = zeros(len(M[0]))
+sigma2 = std(y)/100.
+bcs.bcs.do_wrapped(M, y, sigma2, 1e-8, j, ebars)
+```
+
+The solution will be written into the `j` vector with the error bars being placed in `ebars`. For the meaning of `sigma2`, refer to the [write-up](https://github.com/rosenbrockc/bcs/blob/master/docs/writeup.pdf). `1e-8` is a the convergence cutoff for the algorithm. It shouldn't need to be changed, but is also described briefly in the write-up.
 
 Using the Fortran Code
 ------
